@@ -185,7 +185,7 @@ class SearchQuery(object):
         search_options = search_api.QueryOptions(
             offset=offset,
             limit=limit,
-            sort_options=sort_options
+            sort_options=sort_options,
             ids_only=self.ids_only
         )
         search_query = search_api.Query(
