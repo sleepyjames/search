@@ -3,6 +3,10 @@ import re, logging
 FORBIDDEN_VALUE_REGEX = re.compile(ur'([^.@ \w-]+)', re.UNICODE)
 
 
+class FieldLookupError(Exception):
+    pass
+
+
 class FilterExpr(object):
     # Default separator between field name and lookup type in the left hand
     # side of the filter expression
@@ -71,8 +75,8 @@ class Q(object):
     DEFAULT = AND
 
     def __init__(self, **kwargs):
-        self.children = [FilterExpr(k, v) for k, v in kwargs.items()]
-        self.conj = self.DEFAULT
+        self.children = kwargs.items()
+        self.conn = self.DEFAULT
         self.inverted = False
 
     def __and__(self, other):
@@ -93,7 +97,7 @@ class Q(object):
         if self.inverted:
             # TODO: this is messy, must be some nicer way I can't think of
             tmpl = u' '.join([u'(%s' % self.NOT, u'%s)'])
-        return tmpl % (u' %s ' % self.conj).join([str(c) for c in self.children])
+        return tmpl % (u' %s ' % self.conn).join([str(c) for c in self.children])
 
     def __debug(self):
         """Enable debugging features. Handy for testing with stuff like:
@@ -107,22 +111,22 @@ class Q(object):
         """
         for c in self.children:
             getattr(c, '_%s__debug' % c.__class__.__name__)()
-        map(unicode.lower, [self.NOT, self.AND, self.OR, self.conj])
+        map(unicode.lower, [self.NOT, self.AND, self.OR, self.conn])
 
     def __undebug(self):
         """Undo `__debug()`"""
         for c in self.children:
             getattr(c, '_%s__undebug' % c.__class__.__name__)()
-        map(unicode.upper, [self.NOT, self.AND, self.OR, self.conj])
+        map(unicode.upper, [self.NOT, self.AND, self.OR, self.conn])
 
-    def _combine(self, other, conj):
+    def _combine(self, other, conn):
         """Return a new Q object with `self` and `other` as children joined
-        by `conj`.
+        by `conn`.
         """
         obj = type(self)()
         obj.add(self)
         obj.add(other)
-        obj.conj = conj
+        obj.conn = conn
         return obj
     
     def add(self, child):
@@ -138,7 +142,12 @@ class Query(object):
     >>> unicode(q)
     'hello I am things AND (things <= 3)'
     """
-    def __init__(self):
+    AND = 'AND'
+    OR = 'OR'
+    NOT = 'NOT'
+
+    def __init__(self, document_class):
+        self.document_class = document_class
         self._gathered_q = None
         self._keywords = []
 
@@ -157,12 +166,13 @@ class Query(object):
 
     def add_q(self, q):
         """Add a `Q` object to the internal reduction of gathered Qs,
-        effectively adding a filter clause to the querystring."""
+        effectively adding a filter clause to the querystring.
+        """
         if self._gathered_q is None:
             self._gathered_q = q
             return self
-        conj = self._gathered_q.DEFAULT.lower()
-        self._gathered_q = getattr(self._gathered_q, '__%s__' % conj)(q)
+        conn = self._gathered_q.DEFAULT.lower()
+        self._gathered_q = getattr(self._gathered_q, '__%s__' % conn)(q)
         return self
 
     def add_keywords(self, keywords):
@@ -170,13 +180,54 @@ class Query(object):
         self._keywords.append(keywords)
         return self
 
+    def unparse_filter(self, child):
+        """Unparse a `Q` object or tuple of the form `(field_lookup, value)`
+        into the filters it represents. E.g.:
+
+        >>> q = Q(title__contains="die hard") & Q(rating__gte=7)
+        >>> query = Query(FilmDocument)
+        >>> query.unparse(q)
+        "((title:'die hard') AND (rating >= 7))
+        """
+        # If we have a `Q` object, recursively unparse its children
+        if isinstance(child, Q):
+            tmpl = '(%s)'
+            if child.inverted:
+                tmpl = '%s (%s)' % (child.NOT, '%s')
+
+            conn = ' %s ' % child.conn
+            return tmpl % (
+                conn.join([self.parse_filter(c) for c in child.children])
+            )
+
+        # `child` is a tuple of the form `(field__lookup, value)`
+        filter_lookup, value = child
+        expr = FilterExpr(*child)
+        # Get the field name to lookup without any comparison operators that
+        # might be present in the field name string
+        fname = expr._split_filter(filter_lookup)[0]
+        doc_fields = self.document_class._meta.fields
+
+        # Can't filter on fields not in the document's fields
+        if fname not in doc_fields:
+            raise FieldLookupError('Prop name %s not in the field list for %s'
+                % (fname, self.document_class.__name__))
+
+        field = doc_fields[fname]
+        try:
+            value = field.to_search_value(value)
+        except (TypeError, ValueError):
+            raise BadValueError('Value %s invalid for filtering on %s.%s (a %s)'
+                % (value, self.document_class.__name__, fname, type(field))
+        # Create a new filter expression with the old filter lookup but with
+        # the newly converted value
+        return str(FilterExpr(filter_lookup, value))
+
     def build_filters(self):
         """Get the search API querystring representation for all gathered
         filters so far, ready for passing to the search API.
         """
-        # The Q object knows how to represent itself
-        if self._gathered_q is not None:
-            return str(self._gathered_q)
+        return self.parse_filter(self._gathered_q)
 
     def build_keywords(self):
         """Get the search API querystring representation for the currently
@@ -192,7 +243,7 @@ class Query(object):
 
 
         if filters and keywords:
-            return u'%s AND %s' % (keywords, filters)
+            return u'%s %s %s' % (keywords, self.AND, filters)
         elif filters:
             return filters
         elif keywords:

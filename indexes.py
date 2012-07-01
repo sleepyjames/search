@@ -2,8 +2,8 @@ import logging
 
 from google.appengine.api import search as search_api
 
-import fields as search_fields
 from query import SearchQuery
+from fields import TextField, IntegerField, FloatField, Field
 
 
 class Options(object):
@@ -55,7 +55,7 @@ class MetaClass(type):
         # to set themselves up, given that we now know the name of the field
         # instance
         for name, field in dct.items():
-            if isinstance(field, search_fields.Field):
+            if isinstance(field, Field):
                 field.add_to_class(new_cls, name)
                 fields[name] = field
                 delattr(new_cls, name)
@@ -85,9 +85,9 @@ class Index(object):
     """
 
     FIELD_MAP = {
-        search_fields.TextField: search_api.TextField,
-        search_fields.IntegerField: search_api.NumberField,
-        search_fields.FloatField: search_api.NumberField
+        TextField: search_api.TextField,
+        IntegerField: search_api.NumberField,
+        FloatField: search_api.NumberField
     }
 
     def __init__(self, name=None):
