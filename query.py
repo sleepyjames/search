@@ -36,12 +36,12 @@ class SearchQuery(object):
             * ids_only: Whether or not this query should return only the IDs of
                 the documents found, or the full documents themselves.
         """
-        self._index = index
-        self._document_class = document_class
-        self._ids_only = ids_only
+        self.index = index
+        self.document_class = document_class
+        self.ids_only = ids_only
 
         # Actual search query string
-        self.query = ql.Query()
+        self.query = ql.Query(self.document_class)
 
         # Query option stuff
         self._cursor = None
@@ -97,9 +97,9 @@ class SearchQuery(object):
 
     def _clone(self):
         new_query = type(self)(
-            self._index,
-            document_class=self._document_class,
-            ids_only=self._ids_only
+            self.index,
+            document_class=self.document_class,
+            ids_only=self.ids_only
         )
         new_query._set_limits(self._offset, self._limit-self._offset)
         new_query._cursor = self._cursor
@@ -112,7 +112,7 @@ class SearchQuery(object):
             self._run_query()
 
         for d in self._results_response:
-            doc = self._document_class(doc_id=d.doc_id)
+            doc = self.document_class(doc_id=d.doc_id)
             for f in d.fields:
                 if f.name in doc._meta.fields:
                     setattr(doc, f.name, f.value)
@@ -148,7 +148,7 @@ class SearchQuery(object):
         return self
 
     def order_by(self, *fields):
-        document_fields = self._document_class._meta.fields
+        document_fields = self.document_class._meta.fields
 
         for expr in fields:
             if expr[0] == '-':
@@ -186,11 +186,12 @@ class SearchQuery(object):
             offset=offset,
             limit=limit,
             sort_options=sort_options
+            ids_only=self.ids_only
         )
         search_query = search_api.Query(
             query_string=query_string,
             options=search_options
         )
 
-        self._results_response = self._index.search(search_query)
+        self._results_response = self.index.search(search_query)
         self._number_found = self._results_response.number_found
