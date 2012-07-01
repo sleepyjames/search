@@ -218,7 +218,7 @@ class Query(object):
             value = field.to_search_value(value)
         except (TypeError, ValueError):
             raise BadValueError('Value %s invalid for filtering on %s.%s (a %s)'
-                % (value, self.document_class.__name__, fname, type(field))
+                % (value, self.document_class.__name__, fname, type(field)))
         # Create a new filter expression with the old filter lookup but with
         # the newly converted value
         return str(FilterExpr(filter_lookup, value))
