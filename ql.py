@@ -71,7 +71,7 @@ class Q(object):
     DEFAULT = AND
 
     def __init__(self, **kwargs):
-        self.children = [FilterExpr(k, v) for k, v in kwargs.items()]
+        self.children = [k, v for k, v in kwargs.items()]
         self.conj = self.DEFAULT
         self.inverted = False
 
@@ -138,7 +138,11 @@ class Query(object):
     >>> unicode(q)
     'hello I am things AND (things <= 3)'
     """
-    def __init__(self):
+    AND = 'AND'
+    OR = 'OR'
+
+    def __init__(self, document_class):
+        self.document_class = document_class
         self._gathered_q = None
         self._keywords = []
 
@@ -157,12 +161,40 @@ class Query(object):
 
     def add_q(self, q):
         """Add a `Q` object to the internal reduction of gathered Qs,
-        effectively adding a filter clause to the querystring."""
+        effectively adding a filter clause to the querystring.
+        """
+        #if self._gathered_q is None:
+        #    self._gathered_q = q
+        #    return self
+        #conj = self._gathered_q.DEFAULT.lower()
+        #self._gathered_q = getattr(self._gathered_q, '__%s__' % conj)(q)
+        #return self
+        for child in q.children:
+            if isinstance(child, Q):
+                self.add_q(child)
+                return
+            for expr in q.children:
+                self.add_filter(expr, conn=q.conj)
+        return self
+
+
+    def add_filter(self, expr, conn=self.AND):
+        field_name, value = expr
+        doc_fields = self.document_class._meta.fields
+        if field_name not in doc_fields:
+            raise Exception('Field %s not in field list for %s' % (field_name, self.document_class))
+        try:
+            value = doc_fields[field_name].to_search_value(value)
+        except (ValueError, TypeError):
+            raise Exception('Value %s is invalid for filtering on %s' % (value, field_name))
+        self.gather_q(Q(**{field_name, value}), conn=conn)
+        return self
+
+    def gather_q(self, q, conn=self.AND):
         if self._gathered_q is None:
             self._gathered_q = q
             return self
-        conj = self._gathered_q.DEFAULT.lower()
-        self._gathered_q = getattr(self._gathered_q, '__%s__' % conj)(q)
+        self._gathered_q = getattr(self._gathered_q, '__%s__' % conn.lower())(q)
         return self
 
     def add_keywords(self, keywords):
@@ -177,6 +209,10 @@ class Query(object):
         # The Q object knows how to represent itself
         if self._gathered_q is not None:
             return str(self._gathered_q)
+
+        for child in self._gathered_q.walk():
+            if instance(child, FilterExpression):
+
 
     def build_keywords(self):
         """Get the search API querystring representation for the currently
