@@ -78,6 +78,31 @@ class DocumentModel(object):
 
         self.doc_id = unicode(kwargs.get('doc_id', '')).encode('utf-8') or None
 
+    def __getattribute__(self, name):
+        """Make sure that any attribute accessed on document classes return
+        the python representation of their value.
+        """
+        # XXX: is this the best place to do this? Should `fields.Field`
+        #      subclasses be descriptors instead?
+
+        # Avoid recursion by looking calling `__getattribute` on the `object`
+        # class with self as the instance
+        val = object.__getattribute__(self, name)
+        meta = object.__getattribute__(self, '_meta')
+        if name in meta.fields:
+            f = meta.fields[name]
+            val = f.to_python(val)
+        return val
+
+    def __setattr__(self, name, val):
+        """Make sure that any attibutes set on document class instances get the
+        value converted to the search API accepted value.
+        """
+        if name in self._meta.fields:
+            f = self._meta.fields[name]
+            val = f.to_search_value(val)
+        super(DocumentModel, self).__setattr__(name, val)
+
 
 class Index(object):
     """A search index. Provides methods for adding, removing and searching
@@ -92,16 +117,19 @@ class Index(object):
 
     def __init__(self, name=None):
         assert name, 'An index must have a non empty name'
+        assert not name.startswith('!') and ' ' not in name,\
+            "An index name must not start with a '!' and must not contain spaces"
         self.name = name
         # The actual index object from the search API
         self._index = search_api.Index(name=name)
 
-    def list_documents(self, cursor=None, **kwargs):
+    def list_documents(self, start_doc_id=None, **kwargs):
         """Return a list of documents in this index in `doc_id` order. I don't
         entirely see the point in this and it's only really here to interface
         with the search API.
         """
-        documents = self._index.list_documents(start_doc_id=cursor, **kwargs)
+        documents = self._index.list_documents(start_doc_id=start_doc_id,
+            **kwargs)
         return list(documents)
 
     def add(self, documents):
@@ -127,7 +155,7 @@ class Index(object):
         for d in documents:
             search_doc = search_api.Document(doc_id=d.doc_id, fields=get_fields(d))
             search_docs.append(search_doc)
-        
+
         return self._index.add(search_docs)
 
     def remove(self, doc_ids):
@@ -135,7 +163,20 @@ class Index(object):
         return self._index.remove(doc_ids)
 
     def purge(self):
-        self.remove([d.doc_id for d in self.list_documents()])
+        """Deletes all documents from this index.
+        
+        Mainly only for testing/debugging, use your own method of deleting all
+        documents if you want to do so.
+        """
+        docs = list(self.list_documents(ids_only=True))
+        while docs:
+            self.remove(docs)
+            docs = list(self.list_documents(ids_only=True))
 
     def search(self, document_class, ids_only=False):
-        return SearchQuery(self._index, document_class=document_class, ids_only=ids_only)
+        """Initialise the search query for this index and document class"""
+        return SearchQuery(
+            self._index,
+            document_class=document_class,
+            ids_only=ids_only
+        )
