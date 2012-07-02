@@ -24,8 +24,8 @@ class SearchQuery(object):
     MAX_LIMIT = 500
     MAX_OFFSET = 800
 
-    ASC = 'ASCENDING'
-    DESC = 'DESCENDING'
+    ASC = search_api.SortExpression.ASCENDING
+    DESC = search_api.SortExpression.DESCENDING
 
     def __init__(self, index, document_class=None, ids_only=False):
         """Arguments:
@@ -111,11 +111,12 @@ class SearchQuery(object):
         if self._results_response is None:
             self._run_query()
 
+        fields = self.document_class._meta.fields
         for d in self._results_response:
             doc = self.document_class(doc_id=d.doc_id)
             for f in d.fields:
                 if f.name in doc._meta.fields:
-                    setattr(doc, f.name, f.prep_value_from_search(f.value))
+                    setattr(doc, f.name, fields[f.name].prep_value_from_search(f.value))
             self._results_cache.append(doc)
             yield doc
 

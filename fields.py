@@ -91,11 +91,21 @@ class Field(object):
         """
         return value
 
+    def prep_value_for_filter(self, value):
+        """Different from `to_search_value`, this converts the value to an
+        appropriate value for filtering it by. This is proabably only useful
+        for DateFields, where the filter value in the query is different to
+        the value actually given to the search API.
+        """
+        if value is None:
+            raise TypeError("Can't filter for None on property %s" % self.name)
+        return value
+
 
 class TextField(Field):
-    """A field for a long string of text. Accepts an optional `indexer`
-    parameter for splitting the string with before it's passed to the
-    search API.
+    """A field for a string of text. Accepts an optional `indexer` parameter
+    which is a function that splits the string into tokens before it's passed
+    to the search API.
     """
 
     def __init__(self, indexer=lambda s: s, default=''):
@@ -105,16 +115,22 @@ class TextField(Field):
     def to_search_value(self, value):
         value = super(TextField, self).to_search_value(value)
 
+        # Don't want to re-index indexed values
         if isinstance(value, IndexedValue):
             return value
 
+        # Ensure the indexer gets a proper unicode string
         value = unicode(value).encode('utf-8')
 
         if self.indexer is None:
             return value
-        return IndexedValue(self.indexer(value))
+        # It's possible the indexer might not return a unicode string
+        # so normalise it here. Also wrap it in IndexedValue so that we know
+        # later that it's already been indexed.
+        return IndexedValue(self.indexer(value)).encode('utf-8')
 
     def to_python(self, value):
+        # For now, whatever we get back is fine
         return unicode(value).encode('utf-8')
 
     def prep_value_from_search(self, value):
@@ -126,23 +142,53 @@ class TextField(Field):
             return value
         return IndexedValue(value)
 
+    def prep_value_for_filter(self, value):
+        # We don't want to index the given text value when filtering with it
+        # so pretend it's already been indexed by wrapping it in IndexedValue.
+        return self.to_search_value(IndexedValue(value))
 
-class IntegerField(Field):
-    """A field representing an integer value"""
+
+class FloatField(Field):
+    """A field representing a floating point value"""
     
     def __init__(self, minimum=None, maximum=None, **kwargs):
-        # Allow minimum and maximum constraints to be applied to the field
-        # value
+        """If minimum and maximum are given, any value assigned to this field
+        will raise a ValueError if not in the defined range.
+        """
+        # According to the docs, the maximum numeric value is (1**32)-1, so
+        # I assume that goes for floats too
         self.minimum = minimum or -MAX_SEARCH_API_INT
         self.maximum = maximum or MAX_SEARCH_API_INT
-        super(IntegerField, self).__init__(**kwargs)
+        super(FloatField, self).__init__(**kwargs)
 
     def to_search_value(self, value):
-        value = super(IntegerField, self).to_search_value(value)
-        value = int(value)
+        value = super(FloatField, self).to_search_value(value)
+        value = float(value)
 
         if value < self.minimum or value > self.maximum:
-            raise FieldError('Value %s is outwith %s-%s'
+            raise ValueError('Value %s is outwith %s-%s'
+                % (value, self.minimum, self.maximum))
+
+        return value
+
+    def to_python(self, value):
+        return float(value)
+
+    def prep_value_for_filter(self, value):
+        return str(self.to_search_value(value))
+
+
+class IntegerField(FloatField):
+    """A field representing an integer value"""
+    
+    def to_search_value(self, value):
+        value = super(IntegerField, self).to_search_value(value)
+        # `value` will be a float, so correct the rounding by adding 0.5
+        # TODO: bother adding 0.5?
+        value = int(value + 0.5)
+
+        if value < int(self.minimum + 0.5) or value > int(self.maximum + 0.5):
+            raise ValueError('Value %s is outwith %s-%s'
                 % (value, self.minimum, self.maximum))
 
         return value
@@ -150,16 +196,8 @@ class IntegerField(Field):
     def to_python(self, value):
         return int(value)
 
-
-class FloatField(Field):
-    """A field representing a floating point value"""
-
-    def to_search_value(self, value):
-        value = super(FloatField, self).to_search_value(value)
-        return float(value)
-
-    def to_python(self, value):
-        return float(value)
+    def prep_value_for_filter(self, value):
+        return str(self.to_search_value(value))
 
 
 class DateField(Field):
@@ -167,25 +205,29 @@ class DateField(Field):
 
     FORMAT = '%Y-%m-%d'
 
-    def __init__(self, auto_now_add=False, auto_now=False, **kwargs):
-        assert not all(auto_now_add, auto_now),\
-            "Can't set both `auto_now_add` and `auto_now` kwargs to True"
-        self.auto_now_add = auto_now_add
-        self.auto_now = auto_now
-        super(IntegerField, self).__init__(**kwargs)
-
     def to_search_value(self, value):
         value = super(DateField, self).to_search_value(value)
+        if value is None or isinstance(value, datetime.date):
+            return value
+        if isinstance(value, basestring):
+            return datetime.datetime.strptime(value, FORMAT).date()
+        if isinstance(value, datetime.datetime):
+            return value.date()
+        raise TypeError(value)
+
+    def to_python(self, value):
         if value is None:
             return value
         if isinstance(value, datetime.date):
-            return value.strftime(FORMAT)
-        if isinstance(value, datetime.datetime):
-            return value.date().strftime(FORMAT)
-        return value
-
-    def to_python(self, value):
-        if not value:
             return value
-        return datetime.date.strptime(value)
+        return datetime.datetime.strptime(value, FORMAT).date()
 
+    def prep_value_for_filter(self, value):
+        # The filter comparison value for a DateField should be a string of
+        # the form 'YYYY-MM-DD'
+        value = super(DateField, self).prep_value_for_filter(value)
+        if isinstance(value, datetime.date):
+            return value.strftime(self.FORMAT)
+        if isinstance(value, datetime.datetime):
+            return value.date().strftime(self.FORMAT)
+        raise TypeError(value)
