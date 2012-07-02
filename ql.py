@@ -197,9 +197,11 @@ class Query(object):
 
             conn = ' %s ' % child.conn
             return tmpl % (
-                conn.join([self.parse_filter(c) for c in child.children])
+                conn.join([self.unparse_filter(c) for c in child.children])
             )
 
+        if child is None:
+            return None
         # `child` is a tuple of the form `(field__lookup, value)`
         filter_lookup, value = child
         expr = FilterExpr(*child)
@@ -227,7 +229,7 @@ class Query(object):
         """Get the search API querystring representation for all gathered
         filters so far, ready for passing to the search API.
         """
-        return self.parse_filter(self._gathered_q)
+        return self.unparse_filter(self._gathered_q)
 
     def build_keywords(self):
         """Get the search API querystring representation for the currently
@@ -240,7 +242,6 @@ class Query(object):
         """Build the full querystring"""
         filters = self.build_filters()
         keywords = self.build_keywords()
-
 
         if filters and keywords:
             return u'%s %s %s' % (keywords, self.AND, filters)
