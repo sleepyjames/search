@@ -3,7 +3,7 @@ import logging
 from google.appengine.api import search as search_api
 
 from query import SearchQuery
-from fields import TextField, IntegerField, FloatField, Field
+from fields import TextField, IntegerField, FloatField, DateField, Field
 
 
 class Options(object):
@@ -112,7 +112,8 @@ class Index(object):
     FIELD_MAP = {
         TextField: search_api.TextField,
         IntegerField: search_api.NumberField,
-        FloatField: search_api.NumberField
+        FloatField: search_api.NumberField,
+        DateField: search_api.DateField,
     }
 
     def __init__(self, name=None):
