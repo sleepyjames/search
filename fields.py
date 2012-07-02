@@ -1,3 +1,5 @@
+import datetime
+
 # TODO: verify this
 MAX_SEARCH_API_INT = 18446744073709551616L
 
@@ -7,6 +9,10 @@ class NOT_SET(object):
 
 
 class FieldError(Exception):
+    pass
+
+
+class IndexedValue(unicode):
     pass
 
 
@@ -38,6 +44,17 @@ class Field(object):
             return self.default
         return value
 
+    def to_python(self, value):
+        """Convert the value to its python equivalent"""
+        return value
+
+    def prep_value_from_search(value):
+        """Values that come directly from the result of a search may need
+        pre-processing before being able to be put through either `to_python`
+        or `to_search_value` methods.
+        """
+        return value
+
 
 class TextField(Field):
     """A field for a long string of text. Accepts an optional `indexer`
@@ -51,11 +68,27 @@ class TextField(Field):
 
     def to_search_value(self, value):
         value = super(TextField, self).to_search_value(value)
+
+        if isinstance(value, IndexedValue):
+            return value
+
         value = unicode(value).encode('utf-8')
 
         if self.indexer is None:
             return value
-        return self.indexer(value)
+        return IndexedValue(self.indexer(value))
+
+    def to_python(self, value):
+        return unicode(value).encode('utf-8')
+
+    def prep_value_from_search(self, value):
+        """If this field is indexed (i.e. it has an assigned indexer) we need
+        to convert the value to an `IndexedValue` so that we don't re-index it
+        when calling `to_search_value`.
+        """
+        if self.indexer is None:
+            return value
+        return IndexedValue(value)
 
 
 class IntegerField(Field):
@@ -78,6 +111,9 @@ class IntegerField(Field):
 
         return value
 
+    def to_python(self, value):
+        return int(value)
+
 
 class FloatField(Field):
     """A field representing a floating point value"""
@@ -86,4 +122,34 @@ class FloatField(Field):
         value = super(FloatField, self).to_search_value(value)
         return float(value)
 
+    def to_python(self, value):
+        return float(value)
+
+
+class DateField(Field):
+    """A field representing a date object"""
+
+    FORMAT = '%Y-%m-%d'
+
+    def __init__(self, auto_now_add=False, auto_now=False, **kwargs):
+        assert not all(auto_now_add, auto_now),\
+            "Can't set both `auto_now_add` and `auto_now` kwargs to True"
+        self.auto_now_add = auto_now_add
+        self.auto_now = auto_now
+        super(IntegerField, self).__init__(**kwargs)
+
+    def to_search_value(self, value):
+        value = super(DateField, self).to_search_value(value)
+        if value is None:
+            return value
+        if isinstance(value, datetime.date):
+            return value.strftime(FORMAT)
+        if isinstance(value, datetime.datetime):
+            return value.date().strftime(FORMAT)
+        return value
+
+    def to_python(self, value):
+        if not value:
+            return value
+        return datetime.date.strptime(value)
 
