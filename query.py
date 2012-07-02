@@ -24,8 +24,8 @@ class SearchQuery(object):
     MAX_LIMIT = 500
     MAX_OFFSET = 800
 
-    ASC = 'ASCENDING'
-    DESC = 'DESCENDING'
+    ASC = search_api.SortExpression.ASCENDING
+    DESC = search_api.SortExpression.DESCENDING
 
     def __init__(self, index, document_class=None, ids_only=False):
         """Arguments:
