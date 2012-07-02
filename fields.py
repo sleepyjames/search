@@ -162,7 +162,7 @@ class FloatField(Field):
         super(FloatField, self).__init__(**kwargs)
 
     def to_search_value(self, value):
-        value = super(IntegerField, self).to_search_value(value)
+        value = super(FloatField, self).to_search_value(value)
         value = float(value)
 
         if value < self.minimum or value > self.maximum:
@@ -210,7 +210,7 @@ class DateField(Field):
         if value is None or isinstance(value, datetime.date):
             return value
         if isinstance(value, basestring):
-            return datetime.date.strptime(value, FORMAT)
+            return datetime.datetime.strptime(value, FORMAT).date()
         if isinstance(value, datetime.datetime):
             return value.date()
         raise TypeError(value)
@@ -218,14 +218,16 @@ class DateField(Field):
     def to_python(self, value):
         if value is None:
             return value
-        return datetime.date.strptime(value)
+        if isinstance(value, datetime.date):
+            return value
+        return datetime.datetime.strptime(value, FORMAT).date()
 
     def prep_value_for_filter(self, value):
         # The filter comparison value for a DateField should be a string of
         # the form 'YYYY-MM-DD'
         value = super(DateField, self).prep_value_for_filter(value)
         if isinstance(value, datetime.date):
-            return value.strftime(FORMAT)
+            return value.strftime(self.FORMAT)
         if isinstance(value, datetime.datetime):
-            return value.date().strftime(FORMAT)
+            return value.date().strftime(self.FORMAT)
         raise TypeError(value)
