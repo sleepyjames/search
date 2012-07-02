@@ -215,7 +215,7 @@ class Query(object):
 
         field = doc_fields[fname]
         try:
-            value = field.to_search_value(value)
+            value = field.prep_value_for_filter(value)
         except (TypeError, ValueError):
             raise BadValueError('Value %s invalid for filtering on %s.%s (a %s)'
                 % (value, self.document_class.__name__, fname, type(field)))
