@@ -110,9 +110,7 @@ datetime.date(1971, 12, 23)
 
 All fields take one standard option:
 
-`default`  
-  The default value for this field if no value is assigned to it  
-  TODO: There's weird logic here to do with not knowing how to represent a None value in search, so a default value is always forced, annoyingly
+`default`: The default value for this field if no value is assigned to it. TODO: There's weird logic here to do with not knowing how to represent a None value in search, so a default value is always forced, annoyingly
 
 #### TextField
 
@@ -120,8 +118,7 @@ Represents a body of text. Any value assigned to this field will be converted to
 
 Options:
 
-`indexer`  
-  A function that takes a text value and returns a Python list of tokens to index this document against. See (indexers)[#indexers] for ones included by default.
+* `indexer`: A function that takes a text value and returns a Python list of tokens to index this document against. See (indexers)[#indexers] for ones included by default.
 
 #### IntegerField
 
@@ -129,11 +126,8 @@ Represents an integer value.
 
 Options:
 
-`maximum`  
-  The maximum value for this field to take
-
-`minimum`  
-  The minimum value for this field to take
+* `maximum`: The maximum value for this field to take
+* `minimum`: The minimum value for this field to take
 
 #### FloatField
 
