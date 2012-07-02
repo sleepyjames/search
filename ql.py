@@ -1,6 +1,6 @@
 import re, logging
 
-FORBIDDEN_VALUE_REGEX = re.compile(ur'([^.@ \w-]+)', re.UNICODE)
+FORBIDDEN_VALUE_REGEX = re.compile(ur'([^_.@ \w-]+)', re.UNICODE)
 
 
 class FieldLookupError(Exception):
