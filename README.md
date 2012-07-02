@@ -100,7 +100,7 @@ Meta-information about document objects is stored in `document._meta`. Currently
 
 Fields are used to define the type and behaviour of properties on `DocumentModel` instances.
 
-Any values assigned to properties which subclass `fields.Field` on a document object are automatically converted to their equivalent value for the search API:
+Any values assigned to properties that subclass `fields.Field` on a document object are automatically converted to their equivalent value for the search API:
 
 ```python
 >>> fd.released = '1971-12-23'
@@ -110,8 +110,8 @@ datetime.date(1971, 12, 23)
 
 All fields take one standard option:
 
-`default`
-  The default value for this field if no value is assigned to it
+`default`  
+  The default value for this field if no value is assigned to it  
   TODO: There's weird logic here to do with not knowing how to represent a None value in search, so a default value is always forced, annoyingly
 
 #### TextField
@@ -120,7 +120,7 @@ Represents a body of text. Any value assigned to this field will be converted to
 
 Options:
 
-`indexer`
+`indexer`  
   A function that takes a text value and returns a Python list of tokens to index this document against. See (indexers)[#indexers] for ones included by default.
 
 #### IntegerField
@@ -129,10 +129,10 @@ Represents an integer value.
 
 Options:
 
-`maximum`
+`maximum`  
   The maximum value for this field to take
 
-`minimum`
+`minimum`  
   The minimum value for this field to take
 
 #### FloatField
