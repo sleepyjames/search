@@ -18,22 +18,58 @@ class IndexedValue(unicode):
 
 class Field(object):
     """Base field class. Responsible for converting the field's assigned value
-    to an acceptable value for the search API.
+    to an acceptable value for the search API and back to Python again.
+
+    There is some magic that happens upon setting/getting values on/from
+    properties that subclass `Field`. When setting a value, it is (validated)
+    and then converted to the search API value. When it's accessed, it's then
+    converted back to it's python value. There's an extra step before setting
+    field values when instantiating document objects with search results, where
+    `field.prep_value_from_search` is called before setting the attribute. The
+    following information is offered as clarity on the process.
+
+    A round trip for setting an attirbute is shown below:
+
+    >>> obj.field = value
+    >>> obj.__setattr__('field', value)
+    >>> new_value = obj._meta.fields['field'].to_search_value(value)
+    >>> obj.field = new_value
+
+    If the document is being instantiated from search results, the ql.Query
+    adds an extra step, allowing you to prep the returned value before calling
+    `f.to_search_value` on it:
+
+    >>> i.search('bla')
+    >>> ...
+    >>> # in query.SearchQuery._run
+    >>> for d in results:
+    ...     for f in d.fields:
+    ...         new_value = d._meta.fields[f.name].prep_value_from_search(f.value)
+    ...         # setattr() then puts the new_value through the journey above
+    ...         setattr(d, f.name, new_value)
+
+    Upon getting the field from the document object, the following process is
+    invoked:
+
+    >>> obj.field
+    >>> obj.__getattribute__('field')
+    >>> old_value = object.__getattribute__('field')
+    >>> obj._meta.fields['field'].to_python(old_value)
+    'some value'
     """
-    
+
     def __init__(self, default=NOT_SET):
         self.default = default
 
     def add_to_class(self, cls, name):
-        """This is a bit of a misnomer, since it's really adding details to
-        this field about the class it's been assigned to, and its own
-        instance name.
+        """Allows this field object to keep track of details about its
+        declaration on the owning document class.
         """
         self.name = name
         self.cls_name = cls.__name__
 
     def to_search_value(self, value):
-        """Convert the assigned value to a value suitable for the search API"""
+        """Convert the value to a value suitable for the search API"""
         # If we don't have a value, try to set it to the default, and if
         # there's no default value set, raise an error.
         if value is None:
@@ -48,7 +84,7 @@ class Field(object):
         """Convert the value to its python equivalent"""
         return value
 
-    def prep_value_from_search(value):
+    def prep_value_from_search(self, value):
         """Values that come directly from the result of a search may need
         pre-processing before being able to be put through either `to_python`
         or `to_search_value` methods.
