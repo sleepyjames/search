@@ -115,7 +115,7 @@ class SearchQuery(object):
             doc = self.document_class(doc_id=d.doc_id)
             for f in d.fields:
                 if f.name in doc._meta.fields:
-                    setattr(doc, f.name, f.value)
+                    setattr(doc, f.name, f.prep_value_from_search(f.value))
             self._results_cache.append(doc)
             yield doc
 
