@@ -91,6 +91,14 @@ class Field(object):
         """
         return value
 
+    def prep_value_for_filter(self, value):
+        """Different from `to_search_value`, this converts the value to an
+        appropriate value for filtering it by. This is proabably only useful
+        for DateFields, where the filter value in the query is different to
+        the value actually given to the search API.
+        """
+        return value
+
 
 class TextField(Field):
     """A field for a long string of text. Accepts an optional `indexer`
