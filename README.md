@@ -1,9 +1,7 @@
 # thor-perusal
 \- a stupid name for an Appengine search API wrapper.
 
-Thor Perusal is a wrapper for Google Appengine's search API that uses Django-like syntax for searching and filtering search indexes.
-
-Why not just write a haystack backend? Because it was quicker to write this than to learn how to write something to plug into something that someone else has defined. Plus, it seems unnecessarily tied to a database API (Django's ORM) while this is database agnostic (but obviously still tied to Appengine.)
+thor-perusal is a wrapper for Google Appengine's search API that uses Django-like syntax for searching and filtering documents in search indexes.
 
 ## An Example
 
@@ -29,34 +27,43 @@ With Google's search API you might index the document something like this:
 >>> from google.appengine.api import search
 >>> from myapp.models import Film
 >>>
+>>> # Get or create the films index
 >>> i = search.Index(name='films')
+>>> # Get the film we want to index
 >>> f = Film.get_by_key_name('die-hard')
->>> f.title, f.description, f.rating, f.released
-'Die Hard', 'Bloody awesome', 10.0, datetime.date(1989, 02, 03)
+>>> print f.title, f.description, f.rating, f.released
+'Die Hard' 'Bloody awesome' 10.0 datetime.date(1989, 02, 03)
 >>>
+>>> # Construct the fields that will make up our document
 >>> fields = [
 ...     search.TextField(name='title', value=f.title),
 ...     search.TextField(name='description', value=f.description),
 ...     search.NumberField(name='rating', value=f.rating),
 ...     search.DateField(name='released', value=f.released)
 ... ]
+>>> # Create the document object using the film's datastore key name as
+>>> # the document ID
 >>> doc = search.Document(doc_id=f.key().name(), fields=fields)
+>>> # Add the document to the films index
 >>> i.add(doc)
 ```
 
-and then search that index:
+Now the document describing _Die Hard_ has been indexed, let's search the index for the document:
 
 ```python
->>>
->>> for d in i.search(search.Query('die')):
+>>> results = i.search(search.Query('die'))
+>>> for d in results:
 ...     print d
 ...
-<search.Document object ...>
+<search.ScoredDocument object ...>
 ```
 
-And just as expected, there it is: our document describing a film. Let's print the film title:
+Just as expected, there it is: our document describing _Die Hard_. Now let's try and print the film title:
 
+TODO: verify there's not some hidden d._fields dict or something that makes this utter nonsense.
 ```python
+>>> # A document has a list of fields matching the list of fields you passed in
+>>> # when instantiating the document
 >>> for field in d.fields:
 ...     if field.name == 'title':
 ...         print field.value
@@ -64,7 +71,7 @@ And just as expected, there it is: our document describing a film. Let's print t
 'Die Hard'
 ```
 
-You might wonder why we had to do this just to print the title of the film. It's because a document (`ScoredDocument`) object returned from the search API has only a list of its fields, the values of which are not directly accessible from the object.
+Look at how we have to get the film's title. This is because a `ScoredDocument` object stores its content in a list of field objects and provides no way to directly access their content via the document instance.
 
 See how (hopefully) much simpler it becomes with thor-perusal.
 
