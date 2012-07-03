@@ -1,8 +1,13 @@
 import datetime
 
 # TODO: verify this
-MAX_SEARCH_API_INT = 18446744073709551616L
+MAX_SEARCH_API_INT_64 = 18446744073709551616L
 
+MAX_SEARCH_API_INT = 2147483647 # 2**31 - 1
+MIN_SEARCH_API_INT = -MAX_SEARCH_API_INT
+
+MAX_SEARCH_API_FLOAT = float(MAX_SEARCH_API_INT)
+MIN_SEARCH_API_FLOAT = -MAX_SEARCH_API_FLOAT
 
 class NOT_SET(object):
     pass
@@ -58,8 +63,12 @@ class Field(object):
     'some value'
     """
 
-    def __init__(self, default=NOT_SET):
+    def __init__(self, default=NOT_SET, null=True):
         self.default = default
+        self.null = null
+
+    def none_value(self):
+        return None
 
     def add_to_class(self, cls, name):
         """Allows this field object to keep track of details about its
@@ -74,9 +83,11 @@ class Field(object):
         # there's no default value set, raise an error.
         if value is None:
             if self.default is NOT_SET:
-                raise FieldError('There is no default value for field %s on '
-                    'class %s, yet there was no value provided'
-                    % (self.name, self.cls_name))
+                if not self.null:
+                    raise FieldError('There is no default value for non-nullable '
+                        'field %s on class %s, yet there was no value provided'
+                        % (self.name, self.cls_name))
+                return None
             return self.default
         return value
 
@@ -97,8 +108,6 @@ class Field(object):
         for DateFields, where the filter value in the query is different to
         the value actually given to the search API.
         """
-        if value is None:
-            raise TypeError("Can't filter for None on property %s" % self.name)
         return value
 
 
@@ -112,8 +121,14 @@ class TextField(Field):
         self.indexer = indexer
         super(TextField, self).__init__(default=default)
 
+    def none_value(self):
+        return u'___NONE___'
+
     def to_search_value(self, value):
         value = super(TextField, self).to_search_value(value)
+
+        if value is None:
+            return self.none_value()
 
         # Don't want to re-index indexed values
         if isinstance(value, IndexedValue):
@@ -130,6 +145,8 @@ class TextField(Field):
         return IndexedValue(self.indexer(value)).encode('utf-8')
 
     def to_python(self, value):
+        if value is None:
+            return self.none_value()
         # For now, whatever we get back is fine
         return unicode(value).encode('utf-8')
 
@@ -155,11 +172,14 @@ class FloatField(Field):
         """If minimum and maximum are given, any value assigned to this field
         will raise a ValueError if not in the defined range.
         """
-        # According to the docs, the maximum numeric value is (1**32)-1, so
+        # According to the docs, the maximum numeric value is (1**31)-1, so
         # I assume that goes for floats too
-        self.minimum = minimum or -MAX_SEARCH_API_INT
-        self.maximum = maximum or MAX_SEARCH_API_INT
+        self.minimum = minimum or MIN_SEARCH_API_FLOAT
+        self.maximum = maximum or MAX_SEARCH_API_FLOAT
         super(FloatField, self).__init__(**kwargs)
+
+    def none_value(self):
+        return MIN_SEARCH_API_FLOAT
 
     def to_search_value(self, value):
         value = super(FloatField, self).to_search_value(value)
@@ -172,6 +192,8 @@ class FloatField(Field):
         return value
 
     def to_python(self, value):
+        if value == self.none_value:
+            return None
         return float(value)
 
     def prep_value_for_filter(self, value):
@@ -180,9 +202,16 @@ class FloatField(Field):
 
 class IntegerField(FloatField):
     """A field representing an integer value"""
-    
+
+    def none_value(self):
+        return MIN_SEARCH_API_INT
+
     def to_search_value(self, value):
         value = super(IntegerField, self).to_search_value(value)
+
+        value is None:
+            return self.none_value()
+
         # `value` will be a float, so correct the rounding by adding 0.5
         # TODO: bother adding 0.5?
         value = int(value + 0.5)
@@ -194,6 +223,8 @@ class IntegerField(FloatField):
         return value
 
     def to_python(self, value):
+        if value == self.none_value():
+            return None
         return int(value)
 
     def prep_value_for_filter(self, value):
@@ -205,9 +236,14 @@ class DateField(Field):
 
     FORMAT = '%Y-%m-%d'
 
+    def none_value(self):
+        return datetime.date.max
+
     def to_search_value(self, value):
         value = super(DateField, self).to_search_value(value)
-        if value is None or isinstance(value, datetime.date):
+        if value is None:
+            return self.none_value()
+        if isinstance(value, datetime.date):
             return value
         if isinstance(value, basestring):
             return datetime.datetime.strptime(value, FORMAT).date()
@@ -216,8 +252,8 @@ class DateField(Field):
         raise TypeError(value)
 
     def to_python(self, value):
-        if value is None:
-            return value
+        if value is self.none_value():
+            return None
         if isinstance(value, datetime.date):
             return value
         return datetime.datetime.strptime(value, FORMAT).date()
@@ -226,6 +262,8 @@ class DateField(Field):
         # The filter comparison value for a DateField should be a string of
         # the form 'YYYY-MM-DD'
         value = super(DateField, self).prep_value_for_filter(value)
+        if value is None:
+            return self.none_value()
         if isinstance(value, datetime.date):
             return value.strftime(self.FORMAT)
         if isinstance(value, datetime.datetime):
