@@ -3,60 +3,110 @@
 
 Thor Perusal is a wrapper for Google Appengine's search API that uses Django-like syntax for searching and filtering search indexes.
 
-Why not just write a haystack backend? Because it was quicker to write this than to learn how to write something to plug into something that someone else has defined. Plus, it seems unnecessarily tied to Django, whereas this is only tied to Appengine.
+Why not just write a haystack backend? Because it was quicker to write this than to learn how to write something to plug into something that someone else has defined. Plus, it seems unnecessarily tied to a database API (Django's ORM) while this is database agnostic (but obviously still tied to Appengine.)
 
-## Overview
+## An Example
 
-### Google's API
+... and a comparison.
 
-Google's search API is based on the concept of adding documents to indexes and then searching those documents via the index. Documents and indexes are created on the fly like so:
+Let's say we have some data model based on information about a film. The db model (using Google's `ext.db` API) may look something like:
+
+```python
+from google.appengine.ext import db
+
+class Film(db.Model):
+    title = db.StringProperty()
+    description = db.TextProperty()
+    rating = db.FloatProperty()
+    released = db.DateField()
+```
+
+Simple. A film has a short-string title, a longer text description, a float value for a rating, and a release date.
+
+With Google's search API you might index the document something like this:
 
 ```python
 >>> from google.appengine.api import search
+>>> from myapp.models import Film
 >>>
 >>> i = search.Index(name='films')
->>> fields = [search.TextField(name='title', value='Die Hard'),
->>>     search.NumberField(name='rating', value=5)]
->>> d = search.Document(doc_id='die-hard', fields=fields)
->>> i.add(d)
+>>> f = Film.get_by_key_name('die-hard')
+>>> f.title, f.description, f.rating, f.released
+'Die Hard', 'Bloody awesome', 10.0, datetime.date(1989, 02, 03)
 >>>
->>> for d in i.search('die'):
+>>> fields = [
+...     search.TextField(name='title', value=f.title),
+...     search.TextField(name='description', value=f.description),
+...     search.NumberField(name='rating', value=f.rating),
+...     search.DateField(name='released', value=f.released)
+... ]
+>>> doc = search.Document(doc_id=f.key().name(), fields=fields)
+>>> i.add(doc)
+```
+
+and then search that index:
+
+```python
+>>>
+>>> for d in i.search(search.Query('die')):
 ...     print d
 ...
-<search.Document object at 0xXXXXXXX>
+<search.Document object ...>
 ```
 
-If many indexing operations are happening at different times, it may be tricky to keep track of what indexes have what documents with what fields, etc.
-
-### thor-perusal
-
-To help keep a consistent schema between documents added to the same index (we'll come to global search indexes later on) document types can be declared... declaratively, much like datastore/database models are from `google.appengine.ext.db` or `django.db`. The above film document could be defined as:
+And just as expected, there it is: our document describing a film. Let's print the film title:
 
 ```python
-from search.indexes import DocumentModel
+>>> for field in d.fields:
+...     if field.name == 'title':
+...         print field.value
+...
+'Die Hard'
+```
+
+You might wonder why we had to do this just to print the title of the film. It's because a document (`ScoredDocument`) object returned from the search API has only a list of its fields, the values of which are not directly accessible from the object.
+
+See how (hopefully) much simpler it becomes with thor-perusal.
+
+First, define the document class to describe the film data:
+
+```python
+from search import indexes
 from search import fields
 
-class FilmDocument(DocumentModel):
+class FilmDocument(indexes.DocumentModel):
     title = fields.TextField()
-    rating = fields.FloatField(default=0, minimum=0, maximum=5.0)
+    description = fields.TextField()
+    rating = fields.FloatField()
+    releaseed = fields.DateField()
 ```
 
-An instance of this document can then be indexed using the provided [`Index`](#index) class (this time from `search.indexes` and not Google's API):
+To index a film document, instantiate and populate it with data, and then add it to the `Index` class provided:
 
 ```python
->>> from search.indexes import Index
+>>> from google.appengine.ext import db
+>>> from search import indexes
+>>> from myapp.models import Film
 >>> from myapp.documents import FilmDocument
->>> i = Index(name='films') # Notice the similar syntax
->>> d = FilmDocument(doc_id='die-hard-2', title='Die Hard 2', rating=4.5)
->>> i.add(d)
 >>>
->>> for d in i.search('die'):
-...     print d.title, d.rating
-...
-"Die Hard 2" 4.5
+>>> # Note that this is simlar syntax, but a different class to Google's
+>>> # Index class
+>>> i = indexes.Index(name='films')
+>>> f = Film.get_by_key_name('die-hard')
+>>> doc = FilmDocument(doc_id='die_hard', **db.to_dict(f))
+>>> i.add(doc)
 ```
 
-This is the basic idea of the wrapper around the search API.
+Now to get at the document, as before, search the index, but this time, the results returned from the search are instances of your FilmDocument class, meaning that the field data is accessible through the field names as attributes on the object, as you'd expect:
+
+```python
+>>> for d in i.search(FilmDocument).keywords('die hard awesome'):
+...     print d.title, d.description, d.rating, d.released
+...
+'Die Hard', 'Bloody awesome', 10.0, datetime.date(1989, 02, 03)
+```
+
+That's all there is to it
 
 ## Reference
 
