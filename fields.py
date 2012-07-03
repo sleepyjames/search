@@ -183,6 +183,10 @@ class FloatField(Field):
 
     def to_search_value(self, value):
         value = super(FloatField, self).to_search_value(value)
+
+        if value is None:
+            return self.none_value()
+
         value = float(value)
 
         if value < self.minimum or value > self.maximum:
@@ -209,7 +213,7 @@ class IntegerField(FloatField):
     def to_search_value(self, value):
         value = super(IntegerField, self).to_search_value(value)
 
-        value is None:
+        if value is None:
             return self.none_value()
 
         # `value` will be a float, so correct the rounding by adding 0.5
@@ -252,7 +256,7 @@ class DateField(Field):
         raise TypeError(value)
 
     def to_python(self, value):
-        if value is self.none_value():
+        if value == self.none_value():
             return None
         if isinstance(value, datetime.date):
             return value
