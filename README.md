@@ -155,7 +155,7 @@ class FilmDocument(DocumentModel):
 
 As you can see this time we've declared certain fields with extra keyword arguments. See [fields](#fields) for more info on specific options for each field.
 
-Instantiating a `DocumentModel` subclass with keyword arguments matching the defined fields automatically sets those fields with the given values, and initialises any other fields with any defaults they were initially declared with, with the `default` keyword argument.
+Instantiating a `DocumentModel` subclass with keyword arguments matching the defined fields automatically sets those fields with the given values. Any other fields are initialised with any defaults given, or `None` if defined with `null=True` and no default.
 
 ```python
 >>> fd = FilmDocument(title='Dirty Harry', description='Stars Clint Eastwood with epic sideburns.')
