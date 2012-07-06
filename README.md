@@ -135,4 +135,8 @@ Now to get at the document, as before, search the index, but this time, the resu
 'Die Hard', 'Bloody awesome', 10.0, datetime.date(1989, 02, 03)
 ```
 
-From a basic standpoint, that's all there is to it. There is various filtering and ordering that can be applied to search queries, refer to the reference for the [`Index`](#index) class for more in-depth example queries.
+From a basic standpoint, that's all there is to it. There is various filtering and ordering that can be applied to search queries, refer to the reference for the Index class for more in-depth example queries.
+
+## Reference
+
+See [here](https://github.com/potatolondon/search/wiki)
