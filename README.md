@@ -8,7 +8,7 @@ thor-perusal is a wrapper for Google Appengine's search API that uses Django-lik
 
 ### Setting up thor-perusal
 
-Setting up thor-perusal is simple. Clone the repo into a folder in your project and make sure it's on your PATH. (Yes, it's not a typical Python package, but I can't see what could be simpler than this.)
+Setting up thor-perusal is simple. Clone the repo into a folder in your project and make sure it's on your PATH. (Yes, it's not a typical Python package, but it might become one soon)
 
 ### The Film Model
 
@@ -97,7 +97,7 @@ class FilmDocument(indexes.DocumentModel):
     title = fields.TextField()
     description = fields.TextField()
     rating = fields.FloatField()
-    releaseed = fields.DateField()
+    released = fields.DateField()
 ```
 
 Notice that this is basically a duplication of the definition for the `Film` datastore model. People constantly refer to the DRY (Don't Repeat Yourself) principle, yet they also constantly refer to the 'be explicit' principal. In this case, you can't do both, so thor-perusal prefers explicit definition of document classes. Just because the two definitions happen to be the same doesn't mean they have anything to do with each other.
@@ -136,94 +136,3 @@ Now to get at the document, as before, search the index, but this time, the resu
 ```
 
 From a basic standpoint, that's all there is to it. There is various filtering and ordering that can be applied to search queries, refer to the reference for the [`Index`](#index) class for more in-depth example queries.
-
-
-
-## Reference
-
-### DocumentModel
-
-A `DocumentModel` allows you to define the names and types of [fields](#fields) for your document. Reusing the film example from above:
-
-```python
-class FilmDocument(DocumentModel):
-    title = fields.TextField(default='Untitled')
-    description = fields.TextField()
-    rating = fields.FloatField(minimum=0, maximum=10.0, default=0)
-    released = fields.DateField()
-```
-
-As you can see this time we've declared certain fields with extra keyword arguments. See [fields](#fields) for more info on specific options for each field.
-
-Instantiating a `DocumentModel` subclass with keyword arguments matching the defined fields automatically sets those fields with the given values. Any other fields are initialised with any defaults given, or `None` if defined with `null=True` and no default.
-
-```python
->>> fd = FilmDocument(title='Dirty Harry', description='Stars Clint Eastwood with epic sideburns.')
->>> fd.title
-"Dirty Harry"
->>> fd.rating
-0
-```
-
-An optional keyword argument to the `DocumentModel` class is `doc_id`. This property defines the search API's internal ID for the document. It is recommended that this is some guessable value based on the document object, since it needs to be known in order to remove a document from an index.
-
-```python
->>> title = 'Dirty Harry'
->>> fd = FilmDocument(doc_id=slugify(title), title=title, ...)
->>> i = Index(name='films')
->>> i.add(fd)
->>> i.remove(fd.doc_id)
-```
-
-TODO: make this a definable field?
-
-Meta-information about document objects is stored in `document._meta`. Currently the only thing it stores is a property called `fields` which is a dictionary of `{field_name: field_object}` for all fields defined on the document. TODO: Is this annoying?
-
-### Fields
-
-Fields are used to define the type and behaviour of properties on `DocumentModel` instances.
-
-Any values assigned to properties that subclass `fields.Field` on a document object are automatically converted to their equivalent value for the search API:
-
-```python
->>> fd.released = '1971-12-23'
->>> fd.released
-datetime.date(1971, 12, 23)
-```
-
-All fields take one standard option:
-
-`default`: The default value for this field if no value is assigned to it. TODO: There's weird logic here to do with not knowing how to represent a None value in search, so a default value is always forced, annoyingly
-
-#### TextField
-
-Represents a body of text. Any value assigned to this field will be converted to a text value and then passed through the given indexer, if any, before being indexed.
-
-Options:
-
-* `indexer`: A function that takes a text value and returns a Python list of tokens to index this document against. See (indexers)[#indexers] for ones included by default.
-
-#### IntegerField
-
-Represents an integer value.
-
-Options:
-
-* `maximum`: The maximum value for this field to take
-* `minimum`: The minimum value for this field to take
-
-#### FloatField
-
-Represents a floating point value
-
-Options:
-
-see [`IntegerField`](#integerfield)
-
-#### DateField
-
-Represents a Python date object. `datetime.date` objects are supported natively by the search API, however, datetime.datetime objects are not, so there is no `DateTimeField`, and if this field recevies a `datetime.datetime` value, it'll automatically be converted to just the `date()` part.
-
-Options:
-
-None, actually. TODO: implement `auto_now_add` and `auto_now`?
