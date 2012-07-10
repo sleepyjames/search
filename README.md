@@ -81,7 +81,7 @@ Just as expected, there it is: our document describing _Die Hard_. Now let's try
 'Die Hard'
 ```
 
-Look at how much work we have to do to get the film's title. This is because a `ScoredDocument` object stores its content in a list of field objects and seemingly provides no way of directly accessing their content via the document instance.
+Look at how much work you've got to do to get the film's title. This is because a `ScoredDocument` object stores its content in a list of field objects and seemingly provides no way of directly accessing their content via the document instance.
 
 ### Searching Films: thor-perusal
 
