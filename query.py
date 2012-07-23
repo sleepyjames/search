@@ -58,6 +58,9 @@ class SearchQuery(object):
         self._results_cache = None
         self._results_response = None
 
+    def __nonzero__(self):
+        return bool(self.query)
+
     def __len__(self):
         if self._number_found is None:
             self._run_query()
@@ -111,21 +114,28 @@ class SearchQuery(object):
         if self._results_response is None:
             self._run_query()
 
-        fields = self.document_class._meta.fields
-        for d in self._results_response:
-            doc = self.document_class(doc_id=d.doc_id)
-            for f in d.fields:
-                if f.name in doc._meta.fields:
-                    setattr(doc, f.name, fields[f.name].prep_value_from_search(f.value))
-            self._results_cache.append(doc)
-            yield doc
+        if self.ids_only:
+            for d in self._results_response:
+                yield d.doc_id
+        else:
+            fields = self.document_class._meta.fields
+            for d in self._results_response:
+                doc = self.document_class(doc_id=d.doc_id)
+                for f in d.fields:
+                    if f.name in doc._meta.fields:
+                        setattr(
+                            doc, f.name,
+                            fields[f.name].prep_value_from_search(f.value)
+                        )
+                self._results_cache.append(doc)
+                yield doc
 
     def _fill_cache(self, how_many):
         for i in range(how_many):
             try:
                 self._results_iter().next()
             except StopIteration:
-                pass
+                break
 
     def _set_limits(self, low, high):
         low = low or 0
@@ -187,7 +197,8 @@ class SearchQuery(object):
             offset=offset,
             limit=limit,
             sort_options=sort_options,
-            ids_only=self.ids_only
+            ids_only=self.ids_only,
+            number_found_accuracy=100
         )
         search_query = search_api.Query(
             query_string=query_string,
