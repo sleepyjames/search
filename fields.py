@@ -235,6 +235,30 @@ class IntegerField(FloatField):
         return str(self.to_search_value(value))
 
 
+class BooleanField(Field):
+    """A field representing a True/False value"""
+
+    def none_value(self):
+        return MIN_SEARCH_API_INT
+
+    def to_search_value(self, value):
+        value = super(BooleanField, self).to_search_value(value)
+
+        if value is None:
+            return self.none_value()
+
+        # Doesn't need explicit True or False value
+        return str(int(bool(value)))
+
+    def to_python(self, value):
+        if value == self.none_value():
+            return None
+        return bool(int(value))
+    
+    def prep_value_for_filter(self, value):
+        return self.to_search_value(value)
+
+
 class DateField(Field):
     """A field representing a date object"""
 
