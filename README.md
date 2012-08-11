@@ -1,7 +1,7 @@
 # thor-perusal
 \- a stupid name for an Appengine search API wrapper.
 
-thor-perusal is a wrapper for Google Appengine's search API that uses Django-like syntax for searching and filtering documents in search indexes, and this, is it's incredibly condescending readme.
+thor-perusal is a wrapper for Google Appengine's search API that uses Django-like syntax for defining documents, and serching and filtering search indexes. And this, is it's potentially condescending readme.
 
 ## Example
 
