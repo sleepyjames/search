@@ -10,8 +10,7 @@ thor-perusal is a wrapper for Google Appengine's search API that uses Django-lik
 Say your app has a database of films that needs to be searched. The first step is to define a document class describing the searchable film data:
 
 ```python
-from search import indexes
-from search import fields
+from search import indexes, fields
 
 class FilmDocument(indexes.DocumentModel):
     title = fields.TextField()
