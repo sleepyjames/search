@@ -82,12 +82,12 @@ class Field(object):
         # If we don't have a value, try to set it to the default, and if
         # there's no default value set, raise an error.
         if value is None:
+            if self.null:
+                return self.none_value()
             if self.default is NOT_SET:
-                if not self.null:
-                    raise FieldError('There is no default value for non-nullable '
-                        'field %s on class %s, yet there was no value provided'
-                        % (self.name, self.cls_name))
-                return None
+                raise FieldError('There is no default value for non-nullable '
+                    'field %s on class %s, yet there was no value provided'
+                    % (self.name, self.cls_name))
             return self.default
         return value
 
@@ -117,9 +117,9 @@ class TextField(Field):
     to the search API.
     """
 
-    def __init__(self, indexer=lambda s: s, default=''):
+    def __init__(self, indexer=None, **kwargs):
         self.indexer = indexer
-        super(TextField, self).__init__(default=default)
+        super(TextField, self).__init__(**kwargs)
 
     def none_value(self):
         return u'___NONE___'
@@ -134,15 +134,10 @@ class TextField(Field):
         if isinstance(value, IndexedValue):
             return value
 
-        # Ensure the indexer gets a proper unicode string
-        value = unicode(value).encode('utf-8')
+        if self.indexer is not None:
+            return IndexedValue(self.indexer(value))
 
-        if self.indexer is None:
-            return value
-        # It's possible the indexer might not return a unicode string
-        # so normalise it here. Also wrap it in IndexedValue so that we know
-        # later that it's already been indexed.
-        return IndexedValue(self.indexer(value)).encode('utf-8')
+        return value
 
     def to_python(self, value):
         if value is None:
@@ -184,7 +179,7 @@ class FloatField(Field):
     def to_search_value(self, value):
         value = super(FloatField, self).to_search_value(value)
 
-        if value is None:
+        if value is None or value == self.none_value():
             return self.none_value()
 
         value = float(value)
@@ -196,7 +191,7 @@ class FloatField(Field):
         return value
 
     def to_python(self, value):
-        if value == self.none_value:
+        if value == self.none_value():
             return None
         return float(value)
 
@@ -204,23 +199,31 @@ class FloatField(Field):
         return str(self.to_search_value(value))
 
 
-class IntegerField(FloatField):
+class IntegerField(Field):
     """A field representing an integer value"""
-
+    
+    def __init__(self, minimum=None, maximum=None, **kwargs):
+        """If minimum and maximum are given, any value assigned to this field
+        will raise a ValueError if not in the defined range.
+        """
+        # According to the docs, the maximum numeric value is (1**31)-1, so
+        # I assume that goes for floats too
+        self.minimum = minimum or MIN_SEARCH_API_INT
+        self.maximum = maximum or MAX_SEARCH_API_INT
+        super(IntegerField, self).__init__(**kwargs)
+    
     def none_value(self):
         return MIN_SEARCH_API_INT
 
     def to_search_value(self, value):
         value = super(IntegerField, self).to_search_value(value)
 
-        if value is None:
+        if value is None or value == self.none_value():
             return self.none_value()
 
-        # `value` will be a float, so correct the rounding by adding 0.5
-        # TODO: bother adding 0.5?
-        value = int(value + 0.5)
+        value = int(value)
 
-        if value < int(self.minimum + 0.5) or value > int(self.maximum + 0.5):
+        if value < self.minimum or value > self.maximum:
             raise ValueError('Value %s is outwith %s-%s'
                 % (value, self.minimum, self.maximum))
 
@@ -244,7 +247,7 @@ class BooleanField(Field):
     def to_search_value(self, value):
         value = super(BooleanField, self).to_search_value(value)
 
-        if value is None:
+        if value is None or value == self.none_value():
             return self.none_value()
 
         # Doesn't need explicit True or False value
@@ -271,12 +274,12 @@ class DateField(Field):
         value = super(DateField, self).to_search_value(value)
         if value is None:
             return self.none_value()
+        if isinstance(value, datetime.datetime):
+            return value.date()
         if isinstance(value, datetime.date):
             return value
         if isinstance(value, basestring):
-            return datetime.datetime.strptime(value, FORMAT).date()
-        if isinstance(value, datetime.datetime):
-            return value.date()
+            return datetime.datetime.strptime(value, self.FORMAT).date()
         raise TypeError(value)
 
     def to_python(self, value):
@@ -284,7 +287,7 @@ class DateField(Field):
             return None
         if isinstance(value, datetime.date):
             return value
-        return datetime.datetime.strptime(value, FORMAT).date()
+        return datetime.datetime.strptime(value, self.FORMAT).date()
 
     def prep_value_for_filter(self, value):
         # The filter comparison value for a DateField should be a string of
