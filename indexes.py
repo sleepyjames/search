@@ -3,7 +3,7 @@ import logging
 from google.appengine.api import search as search_api
 
 from query import SearchQuery
-from fields import TextField, IntegerField, FloatField, DateField, Field
+from fields import TextField, IntegerField, FloatField, DateField, Field, BooleanField
 
 
 class Options(object):
@@ -114,6 +114,7 @@ class Index(object):
         IntegerField: search_api.NumberField,
         FloatField: search_api.NumberField,
         DateField: search_api.DateField,
+        BooleanField: search_api.AtomField,
     }
 
     def __init__(self, name=None):
@@ -169,7 +170,7 @@ class Index(object):
         Mainly only for testing/debugging, use your own method of deleting all
         documents if you want to do so.
         """
-        docs = list(self.list_documents(ids_only=True))
+        docs = [d.doc_id for d in self.list_documents(ids_only=True)]
         while docs:
             self.remove(docs)
             docs = list(self.list_documents(ids_only=True))
