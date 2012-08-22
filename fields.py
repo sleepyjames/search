@@ -140,8 +140,8 @@ class TextField(Field):
         return value
 
     def to_python(self, value):
-        if value is None:
-            return self.none_value()
+        if value is None or value == self.none_value():
+            return None
         # For now, whatever we get back is fine
         return unicode(value).encode('utf-8')
 
