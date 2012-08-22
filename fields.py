@@ -143,7 +143,7 @@ class TextField(Field):
         if value is None or value == self.none_value():
             return None
         # For now, whatever we get back is fine
-        return unicode(value).encode('utf-8')
+        return value
 
     def prep_value_from_search(self, value):
         """If this field is indexed (i.e. it has an assigned indexer) we need
