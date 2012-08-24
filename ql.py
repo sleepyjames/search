@@ -7,6 +7,10 @@ class FieldLookupError(Exception):
     pass
 
 
+class BadValueError(Exception):
+    pass
+
+
 class FilterExpr(object):
     # Default separator between field name and lookup type in the left hand
     # side of the filter expression
@@ -83,7 +87,23 @@ class Q(object):
     DEFAULT = AND
 
     def __init__(self, **kwargs):
-        self.children = kwargs.items()
+        children = kwargs.items()
+
+        self.children = []
+        for k, v in children:
+            try:
+                v_is_list = bool(iter(v)) and not issubclass(type(v), basestring)
+            except TypeError:
+                v_is_list = False
+
+            if v_is_list:
+                q = Q(**{k:v[0]})
+                for value in v[1:]:
+                    q |= Q(**{k:value})
+                self.children.append(q)
+            else:
+                self.children.append((k, v))
+
         self.conn = self.DEFAULT
         self.inverted = False
 
