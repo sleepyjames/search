@@ -60,6 +60,9 @@ class SearchQuery(object):
         self._results_cache = None
         self._results_response = None
 
+        # XXX: raw query
+        self._raw_query = None 
+
     def __nonzero__(self):
         return bool(self.query)
 
@@ -114,6 +117,10 @@ class SearchQuery(object):
         new_query._next_cursor = self._next_cursor
         new_query._sorts = self._sorts
         new_query.query = self.query
+
+        # XXX: Copy raw query in clone
+        new_query._raw_query = self._raw_query 
+
         return new_query
 
     def _results_iter(self):
@@ -198,11 +205,28 @@ class SearchQuery(object):
         self.query.add_keywords(keywords)
         return self
 
+    # XXX: See comment in _run_query 
+    def raw(self, query_string):
+        """ Execute a raw query directly. This just 
+            sets `query` to `query_string`
+        """
+        self._raw_query = query_string 
+        logging.info('Raw %s' % query_string)
+        return self
+
     def _run_query(self):
         offset = self._offset
         limit = self._limit
         sort_expressions = self._sorts
-        query_string = str(self.query)
+        
+        # XXX: Sorry, this is a horrid hack to allow me to 
+        # bypass the whole filtering mechanic 
+        if self._raw_query is not None:
+            query_string = self._raw_query
+        else:
+            query_string = unicode(self.query)
+
+        logging.info('Execute query %s' % query_string)
 
         sort_options = search_api.SortOptions(expressions=sort_expressions)
         search_options = search_api.QueryOptions(
