@@ -10,7 +10,7 @@ thor is a wrapper for Google Appengine's search API that uses Django-like syntax
 Say your app has a database of films that needs to be searched. The first step is to define a document class describing the searchable film data:
 
 ```python
-from search import indexes, fields
+from thor import indexes, fields
 
 class FilmDocument(indexes.DocumentModel):
     title = fields.TextField()
@@ -23,7 +23,7 @@ To index a film document, instantiate and populate it with data, and then add it
 
 ```python
 >>> from datetime import date
->>> from search import indexes
+>>> from thor import indexes
 >>> from myapp.documents import FilmDocument
 >>>
 >>> # This gets a search index by name or creates it if it doesn't exist
