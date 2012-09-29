@@ -1,7 +1,7 @@
-# thor-perusal
+# thor
 \- a stupid name for an Appengine search API wrapper.
 
-thor-perusal is a wrapper for Google Appengine's search API that uses Django-like syntax for defining documents, and serching and filtering search indexes. And this, is it's potentially condescending readme.
+thor is a wrapper for Google Appengine's search API that uses Django-like syntax for defining documents, and serching and filtering search indexes. And this, is it's potentially condescending readme.
 
 ## Example
 
@@ -19,7 +19,7 @@ class FilmDocument(indexes.DocumentModel):
     released = fields.DateField()
 ```
 
-To index a film document, instantiate and populate it with data, and then add it to thor-perusal's provided `Index` class. It's more likely the data would come from some other source (datastore, database, etc.) but for this example we hand-craft it:
+To index a film document, instantiate and populate it with data, and then add it to thor's provided `Index` class. It's more likely the data would come from some other source (datastore, database, etc.) but for this example we hand-craft it:
 
 ```python
 >>> from datetime import date
