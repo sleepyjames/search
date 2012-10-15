@@ -1,4 +1,4 @@
-import datetime
+import datetime, logging
 
 # TODO: verify this
 MAX_SEARCH_API_INT_64 = 18446744073709551616L
@@ -140,7 +140,7 @@ class TextField(Field):
         return value
 
     def to_python(self, value):
-        if value is None or value == self.none_value():
+        if value in (None, 'None', self.none_value()):
             return None
         # For now, whatever we get back is fine
         return value
@@ -250,8 +250,13 @@ class BooleanField(Field):
         if value is None or value == self.none_value():
             return self.none_value()
 
-        # Doesn't need explicit True or False value
-        return str(int(bool(value)))
+        try:
+            # This is required because 'value' might be a string
+            value = int(value)
+        except TypeError:
+            pass
+
+        return int(bool(value))
 
     def to_python(self, value):
         if value == self.none_value():
@@ -260,6 +265,9 @@ class BooleanField(Field):
     
     def prep_value_for_filter(self, value):
         return self.to_search_value(value)
+
+    def prep_value_from_search(self, value):
+        return bool(int(value))
 
 
 class DateField(Field):
