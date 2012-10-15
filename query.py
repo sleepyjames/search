@@ -1,4 +1,4 @@
-import re
+import re, logging
 
 from google.appengine.api import search as search_api
 
@@ -123,10 +123,8 @@ class SearchQuery(object):
                 doc = self.document_class(doc_id=d.doc_id)
                 for f in d.fields:
                     if f.name in doc._meta.fields:
-                        setattr(
-                            doc, f.name,
-                            fields[f.name].prep_value_from_search(f.value)
-                        )
+                        value = fields[f.name].prep_value_from_search(f.value)
+                        setattr(doc, f.name, value)
                 self._results_cache.append(doc)
                 yield doc
 
@@ -190,7 +188,7 @@ class SearchQuery(object):
         offset = self._offset
         limit = self._limit
         sort_expressions = self._sorts
-        query_string = unicode(self.query)
+        query_string = str(self.query)
 
         sort_options = search_api.SortOptions(expressions=sort_expressions)
         search_options = search_api.QueryOptions(
