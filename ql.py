@@ -37,6 +37,14 @@ class FilterExpr(object):
         prop_name, op = self._split_filter(self.prop_name)
         template = self.OPS[op]
         return template % (prop_name, self.value)
+
+    def get_value(self):
+        return self.__unicode__()
+
+    def __unicode__(self):
+        prop_name, op = self._split_filter(self.prop_name)
+        template = self.OPS[op]
+        return template % (prop_name, self.value)
     
     def __debug(self):
         """Enable debugging features"""
@@ -191,11 +199,11 @@ class Query(object):
         """
         # If we have a `Q` object, recursively unparse its children
         if isinstance(child, Q):
-            tmpl = '(%s)'
+            tmpl = u'(%s)'
             if child.inverted:
-                tmpl = '%s (%s)' % (child.NOT, '%s')
+                tmpl = u'%s (%s)' % (child.NOT, '%s')
 
-            conn = ' %s ' % child.conn
+            conn = u' %s ' % child.conn
             return tmpl % (
                 conn.join([self.unparse_filter(c) for c in child.children])
             )
@@ -223,7 +231,7 @@ class Query(object):
                 % (value, self.document_class.__name__, fname, type(field)))
         # Create a new filter expression with the old filter lookup but with
         # the newly converted value
-        return str(FilterExpr(filter_lookup, value))
+        return unicode(FilterExpr(filter_lookup, value).get_value())
 
     def build_filters(self):
         """Get the search API querystring representation for all gathered
