@@ -114,7 +114,7 @@ class Index(object):
         IntegerField: search_api.NumberField,
         FloatField: search_api.NumberField,
         DateField: search_api.DateField,
-        BooleanField: search_api.AtomField,
+        BooleanField: search_api.NumberField,
     }
 
     def __init__(self, name=None):
