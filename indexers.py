@@ -109,7 +109,7 @@ def firstletter(string, ignore=None):
         return value
 
     ignore = ignore or []
-    regexes = [re.compile(i) for i in ignore]
+    regexes = [re.compile(i, re.I) for i in ignore]
     for r in regexes:
         string = r.sub('', string)
     return [sub_firstletter(string.strip()).lower()]
