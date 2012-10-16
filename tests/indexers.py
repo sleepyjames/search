@@ -190,3 +190,10 @@ class FirstletterTest(BaseTest, unittest.TestCase):
 
         self.kwargs['ignore'] = ['a', 'the']
         self.assert_indexed(string, expected)
+
+    def test_5(self):
+        string = u'The museum'
+        expected = [u'm']
+
+        self.kwargs['ignore'] = ['the']
+        self.assert_indexed(string, expected)
