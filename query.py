@@ -3,6 +3,7 @@ import re, logging
 from google.appengine.api import search as search_api
 
 import ql
+from fields import NOT_SET
 
 
 class SearchQuery(object):
@@ -170,10 +171,12 @@ class SearchQuery(object):
             if expression not in document_fields:
                 continue
 
-            default_value = document_fields[fname].default
+            field = document_fields[expression]
+            default_value = (field.default if field.default is not NOT_SET
+                else field.none_value())
             self._sorts.append(
                 search_api.SortExpression(
-                    expression=fname,
+                    expression=expression,
                     default_value=default_value,
                     direction=direction
                 )
