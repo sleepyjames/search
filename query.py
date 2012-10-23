@@ -47,6 +47,7 @@ class SearchQuery(object):
         # Query option stuff
         self._cursor = None
         self._next_cursor = None
+        self._has_set_limits = False
 
         self._sorts = []
 
@@ -64,7 +65,10 @@ class SearchQuery(object):
 
     def __len__(self):
         if self._number_found is None:
+            if not self._has_set_limits:
+                self._set_limits(0, 1)
             self._run_query()
+            self._reset_limits()
         return self._number_found
 
     def __iter__(self):
@@ -94,7 +98,7 @@ class SearchQuery(object):
         new_query = self._clone()
         if isinstance(s, slice):
             new_query._set_limits(s.start, s.stop)
-            return list(new_query) if not s.step else list(new_query)[::s.step]
+            return new_query if not s.step else list(new_query)[::s.step]
         else:
             new_query._set_limits(s, s+1)
             return list(new_query)[0]
@@ -142,6 +146,12 @@ class SearchQuery(object):
 
         self._offset = low
         self._limit = high - low
+        self._has_set_limits = True
+
+    def _reset_limits(self):
+        self._offset = 0
+        self._limit = self.MAX_LIMIT
+        self._has_set_limits = False
 
     def count(self):
         return len(self)
