@@ -112,6 +112,7 @@ class SearchQuery(object):
         new_query._set_limits(self._offset, self._limit-self._offset)
         new_query._cursor = self._cursor
         new_query._next_cursor = self._next_cursor
+        new_query._sorts = self._sorts
         new_query.query = self.query
         return new_query
 
