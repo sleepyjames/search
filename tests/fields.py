@@ -127,27 +127,27 @@ class TestBooleanField(Base, unittest.TestCase):
     
     def test_to_search_value_null_default_2(self):
         f = self.new_field(self.field_class, default=True, null=True)
-        self.assertEquals(f.to_search_value(False), '0')
+        self.assertEquals(f.to_search_value(False), 0)
 
     def test_to_search_value_no_null_default(self):
         f = self.new_field(self.field_class, default=True, null=False)
-        self.assertEquals(f.to_search_value(None), '1')
+        self.assertEquals(f.to_search_value(None), 1)
 
     def test_to_search_value_no_null_default_2(self):
         f = self.new_field(self.field_class, default=False, null=False)
-        self.assertEquals(f.to_search_value(None), '0')
+        self.assertEquals(f.to_search_value(None), 0)
 
     def test_to_search_value_no_null_default_3(self):
         f = self.new_field(self.field_class, default=True, null=False)
-        self.assertEquals(f.to_search_value(False), '0')
+        self.assertEquals(f.to_search_value(False), 0)
 
     def test_to_search_value_true(self):
         f = self.new_field(self.field_class)
-        self.assertEquals(f.to_search_value(True), '1')
+        self.assertEquals(f.to_search_value(True), 1)
 
     def test_to_search_value_false(self):
         f = self.new_field(self.field_class)
-        self.assertEquals(f.to_search_value(False), '0')
+        self.assertEquals(f.to_search_value(False), 0)
 
 
 class TestDateField(Base, unittest.TestCase):
