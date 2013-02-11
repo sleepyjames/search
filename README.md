@@ -38,7 +38,7 @@ To index a film document, instantiate and populate it with data, and then add it
 ... )
 >>> # Add the document to the index. In reality this should be done on
 >>> # a taskqueue at a rate around 4 docs/sec.
->>> i.add(doc)
+>>> i.put(doc)
 ```
 
 Now the document has been indexed and is ready to search:
