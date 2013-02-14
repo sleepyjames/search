@@ -130,7 +130,7 @@ class Index(object):
         entirely see the point in this and it's only really here to interface
         with the search API.
         """
-        documents = self._index.list_documents(start_doc_id=start_doc_id,
+        documents = self._index.get_range(start_id=start_doc_id,
             **kwargs)
         return list(documents)
 
@@ -158,15 +158,15 @@ class Index(object):
             search_doc = search_api.Document(doc_id=d.doc_id, fields=get_fields(d))
             search_docs.append(search_doc)
 
-        return self._index.add(search_docs)
+        return self._index.put(search_docs)
 
     def remove(self, doc_ids):
         """Straight up proxy to the underlying index's `remove` method"""
-        return self._index.remove(doc_ids)
+        return self._index.delete(doc_ids)
 
     def purge(self):
         """Deletes all documents from this index.
-        
+
         Mainly only for testing/debugging, use your own method of deleting all
         documents if you want to do so.
         """
