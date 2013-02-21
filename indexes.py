@@ -125,7 +125,7 @@ class Index(object):
         # The actual index object from the search API
         self._index = search_api.Index(name=name)
 
-    def list_documents(self, start_doc_id=None, **kwargs):
+    def get_range(self, start_doc_id=None, **kwargs):
         """Return a list of documents in this index in `doc_id` order. I don't
         entirely see the point in this and it's only really here to interface
         with the search API.
@@ -134,7 +134,9 @@ class Index(object):
             **kwargs)
         return list(documents)
 
-    def add(self, documents):
+    list_documents = get_range
+
+    def put(self, documents):
         """Add `documents` to this index"""
 
         def get_fields(d):
@@ -160,9 +162,13 @@ class Index(object):
 
         return self._index.put(search_docs)
 
-    def remove(self, doc_ids):
+    add = put
+
+    def delete(self, doc_ids):
         """Straight up proxy to the underlying index's `remove` method"""
         return self._index.delete(doc_ids)
+
+    remove = delete
 
     def purge(self):
         """Deletes all documents from this index.
