@@ -160,9 +160,16 @@ class TextField(Field):
         return self.to_search_value(IndexedValue(value))
 
 
+class HtmlField(TextField):
+    """A field for a string of HTML. This inherits directly form TextField as
+    there is no need to treat HTML differently from text, except to tell the
+    Search API it's HTML."""
+    pass
+
+
 class FloatField(Field):
     """A field representing a floating point value"""
-    
+
     def __init__(self, minimum=None, maximum=None, **kwargs):
         """If minimum and maximum are given, any value assigned to this field
         will raise a ValueError if not in the defined range.
@@ -201,7 +208,7 @@ class FloatField(Field):
 
 class IntegerField(Field):
     """A field representing an integer value"""
-    
+
     def __init__(self, minimum=None, maximum=None, **kwargs):
         """If minimum and maximum are given, any value assigned to this field
         will raise a ValueError if not in the defined range.
@@ -211,7 +218,7 @@ class IntegerField(Field):
         self.minimum = minimum or MIN_SEARCH_API_INT
         self.maximum = maximum or MAX_SEARCH_API_INT
         super(IntegerField, self).__init__(**kwargs)
-    
+
     def none_value(self):
         return MIN_SEARCH_API_INT
 
@@ -262,7 +269,7 @@ class BooleanField(Field):
         if value == self.none_value():
             return None
         return bool(int(value))
-    
+
     def prep_value_for_filter(self, value):
         return self.to_search_value(value)
 
