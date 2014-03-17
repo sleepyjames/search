@@ -6,6 +6,18 @@ import ql
 from fields import NOT_SET
 
 
+def construct_document(document_class, document):
+    doc = document_class(doc_id=document.doc_id)
+    for f in document.fields:
+        if f.name in doc._meta.fields:
+            setattr(
+                doc, f.name,
+                fields[f.name].prep_value_from_search(f.value)
+            )
+
+    return doc
+
+
 class SearchQuery(object):
     """Represents a search query for the search API.
 
@@ -133,11 +145,7 @@ class SearchQuery(object):
         else:
             fields = self.document_class._meta.fields
             for d in self._results_response:
-                doc = self.document_class(doc_id=d.doc_id)
-                for f in d.fields:
-                    if f.name in doc._meta.fields:
-                        value = fields[f.name].prep_value_from_search(f.value)
-                        setattr(doc, f.name, value)
+                doc = construct_document(self.document_class, d)
                 self._results_cache.append(doc)
                 yield doc
 

@@ -2,7 +2,7 @@ import logging
 
 from google.appengine.api import search as search_api
 
-from query import SearchQuery
+from query import SearchQuery, construct_document
 from fields import TextField, IntegerField, FloatField, DateField, Field, BooleanField, HtmlField
 
 
@@ -12,6 +12,12 @@ class Options(object):
     """
     def __init__(self, fields):
         self.fields = fields
+
+
+class RangeDocument(object):
+
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
 
 
 class MetaClass(type):
@@ -135,7 +141,29 @@ class Index(object):
             **kwargs)
         return list(documents)
 
-    list_documents = get_range
+    def list_documents(self, **kwargs):
+        """Deprecated. Use get_range instead"""
+        return self.get_range(**kwargs)
+
+    def add(self, documents):
+        """Deprecated in SDK 1.7.4 and will removed in 1.7.5, use `put` instead
+        """
+        return self.put(documents)
+
+    def get_range(self, document_class=None, **kwargs):
+        ids_only = kwargs.get("ids_only")
+
+        if not ids_only and document_class:
+            raise ValueError(
+                "If ids_only is False, you must pass a document_class to "
+                "instantiate with the results"
+            )
+
+        docs = self._index.get_range(**kwargs)
+
+        if ids_only:
+            return [RangeDocument(doc_id=doc.doc_id) for doc in docs]
+        return [construct_document(document_class, doc) for doc in docs]
 
     def put(self, documents):
         """Add `documents` to this index"""
@@ -177,10 +205,14 @@ class Index(object):
         Mainly only for testing/debugging, use your own method of deleting all
         documents if you want to do so.
         """
-        docs = [d.doc_id for d in self.list_documents(ids_only=True)]
+        docs = self.get_range(ids_only=True)
         while docs:
-            self.remove(docs)
-            docs = list(self.list_documents(ids_only=True))
+            self.delete([d.doc_id for d in docs])
+            docs = self.get_range(
+                ids_only=True,
+                start_id=docs[-1],
+                include_start_object=False
+            )
 
     def search(self, document_class, ids_only=False):
         """Initialise the search query for this index and document class"""
