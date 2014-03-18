@@ -7,6 +7,7 @@ from fields import NOT_SET
 
 
 def construct_document(document_class, document):
+    fields = document_class._meta.fields
     doc = document_class(doc_id=document.doc_id)
     for f in document.fields:
         if f.name in doc._meta.fields:
@@ -143,7 +144,6 @@ class SearchQuery(object):
             for d in self._results_response:
                 yield d.doc_id
         else:
-            fields = self.document_class._meta.fields
             for d in self._results_response:
                 doc = construct_document(self.document_class, d)
                 self._results_cache.append(doc)
