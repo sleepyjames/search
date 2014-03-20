@@ -9,12 +9,20 @@ from fields import NOT_SET
 def construct_document(document_class, document):
     fields = document_class._meta.fields
     doc = document_class(doc_id=document.doc_id)
+
     for f in document.fields:
         if f.name in doc._meta.fields:
             setattr(
                 doc, f.name,
                 fields[f.name].prep_value_from_search(f.value)
             )
+
+    snippets = {expr.name: expr.value for expr in document.expressions}
+
+    # This is hacky as hell - TODO: Make this a proper thing
+    def get_snippets():
+        return snippets
+    doc.get_snippets = get_snippets
 
     return doc
 
@@ -64,6 +72,8 @@ class SearchQuery(object):
 
         self._sorts = []
         self._match_scorer = None
+
+        self._snippeted_fields = []
 
         self._offset = 0
         self._limit = self.MAX_LIMIT
@@ -130,6 +140,7 @@ class SearchQuery(object):
         new_query._cursor = self._cursor
         new_query._next_cursor = self._next_cursor
         new_query._sorts = self._sorts
+        new_query._snippeted_fields = self._snippeted_fields
         new_query.query = self.query
 
         # XXX: Copy raw query in clone
@@ -227,6 +238,16 @@ class SearchQuery(object):
         self._match_scorer = match_scorer
         return self
 
+    def snippet(self, *fields):
+        for field_name in fields:
+            if field_name not in self.document_class._meta.fields:
+                raise ValueError(
+                    "Can't snippet field {} since {} has no field by that name"
+                    .format(field_name, self.document_class.__name__)
+                )
+        self._snippeted_fields.extend(fields)
+        return self
+
     def _run_query(self):
         offset = self._offset
         limit = self._limit
@@ -253,7 +274,8 @@ class SearchQuery(object):
             limit=limit,
             sort_options=sort_options,
             ids_only=self.ids_only,
-            number_found_accuracy=100
+            number_found_accuracy=100,
+            snippeted_fields=self._snippeted_fields,
         )
         search_query = search_api.Query(
             query_string=query_string,

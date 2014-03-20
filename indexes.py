@@ -109,6 +109,9 @@ class DocumentModel(object):
             val = f.to_search_value(val)
         super(DocumentModel, self).__setattr__(name, val)
 
+    def get_snippets(self):
+        return []
+
 
 class Index(object):
     """A search index. Provides methods for adding, removing and searching
