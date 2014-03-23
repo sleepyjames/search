@@ -6,18 +6,31 @@ import ql
 from fields import NOT_SET
 
 
+def clean_snippet(snippet_value):
+    if not "<b>" in snippet_value:
+        return None
+    return snippet_value
+
+
 def construct_document(document_class, document):
     fields = document_class._meta.fields
     doc = document_class(doc_id=document.doc_id)
 
+    values = {}
     for f in document.fields:
         if f.name in doc._meta.fields:
-            setattr(
-                doc, f.name,
-                fields[f.name].prep_value_from_search(f.value)
-            )
+            value = fields[f.name].prep_value_from_search(f.value)
+            setattr(doc, f.name, value)
+            values[f.name] = value
 
-    snippets = {expr.name: expr.value for expr in document.expressions}
+    snippets = {}
+    for expr in document.expressions:
+        # Only add the snippet if the document has a value for that field
+        # (otherwise some snippets come back as '__NONE__', etc.)
+        if values.get(expr.name):
+            snippets[expr.name] = clean_snippet(expr.value)
+        else:
+            snippets[expr.name] = None
 
     # This is hacky as hell - TODO: Make this a proper thing
     def get_snippets():
@@ -74,6 +87,7 @@ class SearchQuery(object):
         self._match_scorer = None
 
         self._snippeted_fields = []
+        self._returned_expressions = []
 
         self._offset = 0
         self._limit = self.MAX_LIMIT
@@ -141,6 +155,7 @@ class SearchQuery(object):
         new_query._next_cursor = self._next_cursor
         new_query._sorts = self._sorts
         new_query._snippeted_fields = self._snippeted_fields
+        new_query._returned_expressions = self._returned_expressions
         new_query.query = self.query
 
         # XXX: Copy raw query in clone
@@ -231,7 +246,6 @@ class SearchQuery(object):
             sets `query` to `query_string`
         """
         self._raw_query = query_string 
-        logging.info('Raw %s' % query_string)
         return self
 
     def score_with(self, match_scorer):
@@ -248,6 +262,28 @@ class SearchQuery(object):
         self._snippeted_fields.extend(fields)
         return self
 
+    def add_expression(self, name, expression):
+        expr = search_api.FieldExpression(name=name, expression=expression)
+        self._returned_expressions.append(expr)
+        return self
+
+    def get_snippet_words(self):
+        snippet_words = [
+            v for k, v in self.query.get_filters()
+            if isinstance(v, basestring)
+        ]
+        snippet_words += self.query.get_keywords()
+        return u" ".join(snippet_words)
+
+    def get_snippet_expressions(self, snippet_words):
+        field_expressions = []
+        for field in self._snippeted_fields:
+            expression = u'snippet("{}", {})'.format(snippet_words, field)
+            field_expressions.append(
+                search_api.FieldExpression(name=field, expression=expression)
+            )
+        return field_expressions
+
     def _run_query(self):
         offset = self._offset
         limit = self._limit
@@ -260,13 +296,14 @@ class SearchQuery(object):
         else:
             query_string = unicode(self.query)
 
-        logging.info('Execute query %s' % query_string)
-
         kwargs = {
             "expressions": sort_expressions
         }
         if self._match_scorer:
             kwargs["match_scorer"] = self._match_scorer
+
+        snippet_words = self.get_snippet_words()
+        field_expressions = self.get_snippet_expressions(snippet_words)
 
         sort_options = search_api.SortOptions(**kwargs)
         search_options = search_api.QueryOptions(
@@ -275,7 +312,7 @@ class SearchQuery(object):
             sort_options=sort_options,
             ids_only=self.ids_only,
             number_found_accuracy=100,
-            snippeted_fields=self._snippeted_fields,
+            returned_expressions=field_expressions,
         )
         search_query = search_api.Query(
             query_string=query_string,
