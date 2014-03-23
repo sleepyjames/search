@@ -160,6 +160,15 @@ class Q(object):
     def add(self, child):
         self.children.append(child)
 
+    def get_filters(self):
+        filters = []
+        for q in self.children:
+            if type(q) == Q:
+                filters.extend(q.get_filters())
+            else:
+                filters.append(q)
+        return filters
+
 
 class Query(object):
     """Represents a search API query language string.
@@ -207,6 +216,12 @@ class Query(object):
         """Add keywords to the querystring"""
         self._keywords.append(keywords)
         return self
+
+    def get_filters(self):
+        return self._gathered_q.get_filters()
+
+    def get_keywords(self):
+        return self._keywords
 
     def unparse_filter(self, child):
         """Unparse a `Q` object or tuple of the form `(field_lookup, value)`
