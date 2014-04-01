@@ -1,18 +1,34 @@
-import re, logging
+import re
 
 from google.appengine.api import search as search_api
 
-import ql
-from fields import NOT_SET
+from . import ql
+from .fields import NOT_SET
 
 
 def clean_snippet(snippet_value):
+    """Only return the snippet value if it looks like there is a match in the
+    snippet.
+    """
+    # Snippets are always returned from the search API, regardless of whether
+    # they match the query or not, so the only way to tell if they matched is
+    # ...to look for the "<b>" tags that wrap the matched terms. This is pretty
+    # rudimentary and probably won't survive future Search API updates.
     if not "<b>" in snippet_value:
         return None
     return snippet_value
 
 
 def construct_document(document_class, document):
+    """Construct a document object of type `document_class` from `document`, a
+    document returned from an App Engine Search API query.
+
+    This sets all the correct values for the fields on the new document and
+    annotates it with a function `get_snippets` that returns a list of
+    expressions returned for the original document.
+
+    TODO: Make all expressions available (not just snippets).
+    """
     fields = document_class._meta.fields
     doc = document_class(doc_id=document.doc_id)
 
@@ -55,9 +71,8 @@ class SearchQuery(object):
     1
     """
 
-    # These are actually 1000 in 1.6.6's search API
-    MAX_LIMIT = 500
-    MAX_OFFSET = 800
+    MAX_LIMIT = 1000
+    MAX_OFFSET = 1000
 
     ASC = search_api.SortExpression.ASCENDING
     DESC = search_api.SortExpression.DESCENDING
@@ -169,6 +184,7 @@ class SearchQuery(object):
 
         if self.ids_only:
             for d in self._results_response:
+                self._results_cache.append(d.doc_id)
                 yield d.doc_id
         else:
             for d in self._results_response:
@@ -242,17 +258,20 @@ class SearchQuery(object):
 
     # XXX: See comment in _run_query 
     def raw(self, query_string):
-        """ Execute a raw query directly. This just 
-            sets `query` to `query_string`
+        """Execute a raw query directly. This will overwrite any filters or
+        keywords previously added to the query, but keep sorting, snippeting,
+        etc.
         """
         self._raw_query = query_string 
         return self
 
     def score_with(self, match_scorer):
+        """Add a Search API scorer to this query"""
         self._match_scorer = match_scorer
         return self
 
     def snippet(self, *fields):
+        """Add fields to get snippets for when this query is run"""
         for field_name in fields:
             if field_name not in self.document_class._meta.fields:
                 raise ValueError(
@@ -268,6 +287,27 @@ class SearchQuery(object):
         return self
 
     def get_snippet_words(self):
+        """Get the words in the query that should be used for getting snippets
+        from the Search API.
+
+        This makes assumptions (probably wrong ones) about what the desired
+        snippeting behaviour. It's unclear exactly how the Search API tries to
+        produce snippets for a query like:
+
+            some keywords corpus:"something specific to corpus"
+
+        It seems to work as 'expected' for the plain keywords since they come
+        back highlighted in the returned snippet. What it does for the filter
+        keywords is difficult to figure out, but they don't appear to be
+        highlighted anywhere in any snippets (instead, the ellipsis on the end
+        of the snippet seems always to be highlighted).
+
+        To 'fix' this, this method strips out all the string values for any
+        filters in the query so that they can be used as the pseudo query to
+        snippet for. This means that the words "something specific to corpus"
+        do come back highlighted if they're present in any of the fields being
+        snippeted.
+        """
         snippet_words = [
             v for k, v in self.query.get_filters()
             if isinstance(v, basestring)
@@ -276,6 +316,9 @@ class SearchQuery(object):
         return u" ".join(snippet_words)
 
     def get_snippet_expressions(self, snippet_words):
+        """Construct the `FieldExpression` objects for the fields that should
+        be snippeted when this query is run.
+        """
         field_expressions = []
         for field in self._snippeted_fields:
             expression = u'snippet("{}", {})'.format(snippet_words, field)
@@ -289,8 +332,6 @@ class SearchQuery(object):
         limit = self._limit
         sort_expressions = self._sorts
         
-        # XXX: Sorry, this is a horrid hack to allow me to 
-        # bypass the whole filtering mechanic 
         if self._raw_query is not None:
             query_string = self._raw_query
         else:
