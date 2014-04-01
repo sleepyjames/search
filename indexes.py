@@ -2,6 +2,7 @@ import logging
 
 from google.appengine.api import search as search_api
 
+from .errors import DocumentClassRequiredError
 from .fields import (
     TextField,
     IntegerField,
@@ -132,7 +133,7 @@ class Index(object):
         BooleanField: search_api.NumberField,
     }
 
-    def __init__(self, name=None):
+    def __init__(self, name=None, document_class=None):
         # Mandatory keyword argument... right. Mainly for compatibility with
         # the Search API's `Index` class
         if not name:
@@ -142,6 +143,8 @@ class Index(object):
             raise ValueError("Index names can't start with a '!' or contain spaces")
 
         self.name = name
+        self.document_class = document_class
+
         # The actual index object from the Search API
         self._index = search_api.Index(name=name)
 
@@ -177,6 +180,7 @@ class Index(object):
         """
         ids_only = kwargs.get("ids_only")
         docs = self._index.get_range(**kwargs)
+        document_class = document_class or self.document_class
 
         if ids_only:
             # This goes against the Search API's return value for `ids_only`,
@@ -189,6 +193,17 @@ class Index(object):
             return [construct_document(document_class, doc) for doc in docs]
         return docs
 
+    def get(self, doc_id, document_class=None):
+        """Get a document from this index by its ID. It'll be returned as an
+        instance of the given `document_class`. Returns `None` if there's no
+        document by that ID.
+        """
+        doc = self._index.get(doc_id)
+        document_class = document_class or self.document_class
+        if doc and document_class:
+            return construct_document(document_class, doc)
+        return doc
+
     def put(self, documents):
         """Add `documents` to this index"""
 
@@ -196,9 +211,9 @@ class Index(object):
             """Convenience function for getting the search API fields list
             from the given document `d`.
             """
-            fmap = self.FIELD_MAP
+            field = lambda f, n, v: self.FIELD_MAP[type(f)](name=n, value=v)
             return [
-                fmap[type(f)](name=n, value=f.to_search_value(getattr(d, n, None)))
+                field(f, n, f.to_search_value(getattr(d, n, None)))
                 for n, f in d._meta.fields.items()
             ]
 
@@ -236,8 +251,16 @@ class Index(object):
                 include_start_object=False
             )
 
-    def search(self, document_class, ids_only=False):
+    def search(self, document_class=None, ids_only=False):
         """Initialise the search query for this index and document class"""
+        document_class = document_class or self.document_class
+        if not document_class:
+            raise DocumentClassRequiredError(
+                u"A document class must be provided to instantiate with query "
+                "results. Either instantiate the index object with one, or "
+                "pass one to the search method."
+            )
+
         return SearchQuery(
             self._index,
             document_class=document_class,
