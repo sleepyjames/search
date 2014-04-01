@@ -1,4 +1,4 @@
-import re, logging
+import re
 
 FORBIDDEN_VALUE_REGEX = re.compile(ur'([^_.@ \w-]+)', re.UNICODE)
 
@@ -230,7 +230,7 @@ class Query(object):
         >>> q = Q(title__contains="die hard") & Q(rating__gte=7)
         >>> query = Query(FilmDocument)
         >>> query.unparse(q)
-        "((title:'die hard') AND (rating >= 7))
+        "((title:'die hard') AND (rating >= 7))"
         """
         # If we have a `Q` object, recursively unparse its children
         if isinstance(child, Q):
@@ -255,14 +255,14 @@ class Query(object):
 
         # Can't filter on fields not in the document's fields
         if fname not in doc_fields:
-            raise FieldLookupError('Prop name %s not in the field list for %s'
+            raise FieldLookupError(u'Prop name %s not in the field list for %s'
                 % (fname, self.document_class.__name__))
 
         field = doc_fields[fname]
         try:
             value = field.prep_value_for_filter(value)
         except (TypeError, ValueError):
-            raise BadValueError('Value %s invalid for filtering on %s.%s (a %s)'
+            raise BadValueError(u'Value %s invalid for filtering on %s.%s (a %s)'
                 % (value, self.document_class.__name__, fname, type(field)))
         # Create a new filter expression with the old filter lookup but with
         # the newly converted value
@@ -288,8 +288,8 @@ class Query(object):
 
         if filters and keywords:
             return u'%s %s %s' % (keywords, self.AND, filters)
-        elif filters:
+        if filters:
             return filters
-        elif keywords:
+        if keywords:
             return keywords
-        return ''
+        return u''
