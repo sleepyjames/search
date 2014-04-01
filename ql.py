@@ -1,14 +1,8 @@
 import re
 
+from .errors import FieldLookupError, BadValueError
+
 FORBIDDEN_VALUE_REGEX = re.compile(ur'([^_.@ \w-]+)', re.UNICODE)
-
-
-class FieldLookupError(Exception):
-    pass
-
-
-class BadValueError(Exception):
-    pass
 
 
 class FilterExpr(object):
