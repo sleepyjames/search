@@ -256,7 +256,6 @@ class SearchQuery(object):
         self.query.add_keywords(keywords)
         return self
 
-    # XXX: See comment in _run_query 
     def raw(self, query_string):
         """Execute a raw query directly. This will overwrite any filters or
         keywords previously added to the query, but keep sorting, snippeting,
