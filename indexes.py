@@ -2,8 +2,16 @@ import logging
 
 from google.appengine.api import search as search_api
 
-from query import SearchQuery, construct_document
-from fields import TextField, IntegerField, FloatField, DateField, Field, BooleanField, HtmlField
+from .fields import (
+    TextField,
+    IntegerField,
+    FloatField,
+    DateField,
+    Field,
+    BooleanField,
+    HtmlField
+)
+from .query import SearchQuery, construct_document
 
 
 class Options(object):
@@ -14,30 +22,24 @@ class Options(object):
         self.fields = fields
 
 
-class RangeDocument(object):
-
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-
-
 class MetaClass(type):
-    def __new__(cls, name, bases, dct):
-        """Allows the typical declarative class pattern:
+    """Allows the typical declarative class pattern:
 
-        >>> class Thing(search.Document):
-        ...     prop = search.Field()
+    >>> class Thing(search.Document):
+    ...     prop = search.Field()
+    ...
+    >>> t = Thing()
+    >>> t.prop = 'hello'
+    >>> t.prop
+    'Hello'
+    >>> Thing.prop
+    Traceback ...:
         ...
-        >>> t = Thing()
-        >>> t.prop = 'hello'
-        >>> t.prop
-        'Hello'
-        >>> Thing.prop
-        Traceback ...:
-            ...
-        AttributeError: type object 'Thing' has no attribute 'prop'
-        >>> Thing._meta.fields['prop']
-        <search.Field object at 0xXXXXXXXX>
-        """
+    AttributeError: type object 'Thing' has no attribute 'prop'
+    >>> Thing._meta.fields['prop']
+    <search.Field object at 0xXXXXXXXX>
+    """
+    def __new__(cls, name, bases, dct):
         new_cls = super(MetaClass, cls).__new__(cls, name, bases, dct)
 
         fields = {}
@@ -76,8 +78,7 @@ class DocumentModel(object):
     __metaclass__ = MetaClass
 
     def __init__(self, **kwargs):
-        # Don't bother to do any fancy Django `*args` mangling, just
-        # use `**kwargs`
+        # No fancy Django `*args` mangling here, just use `**kwargs`
         for name, field in self._meta.fields.items():
             val = kwargs.pop(name, None)
             setattr(self, name, val)
@@ -85,14 +86,10 @@ class DocumentModel(object):
         self.doc_id = unicode(kwargs.get('doc_id', '')).encode('utf-8') or None
 
     def __getattribute__(self, name):
-        """Make sure that any attribute accessed on document classes return
-        the python representation of their value.
+        """Make sure that any attribute accessed on document classes returns the
+        python representation of its value.
         """
-        # XXX: is this the best place to do this? Should `fields.Field`
-        #      subclasses be descriptors instead?
-
-        # Avoid recursion by looking calling `__getattribute` on the `object`
-        # class with self as the instance
+        # TODO: Probably use `Field`s as descriptors and leave this to them
         val = object.__getattribute__(self, name)
         meta = object.__getattribute__(self, '_meta')
         if name in meta.fields:
@@ -104,13 +101,21 @@ class DocumentModel(object):
         """Make sure that any attibutes set on document class instances get the
         value converted to the search API accepted value.
         """
+        # TODO: Probably use `Field`s as descriptors and leave this to them
         if name in self._meta.fields:
             f = self._meta.fields[name]
             val = f.to_search_value(val)
         super(DocumentModel, self).__setattr__(name, val)
 
     def get_snippets(self):
-        return []
+        """Get the snippets for this document as a dictionary of the form:
+
+            {"field_name": "snippet for this field, if there is one"}
+
+        Returns an empty dict if this document hasn't been returned as part of
+        a search query (since it can only be populated then.)
+        """
+        return {}
 
 
 class Index(object):
@@ -128,11 +133,16 @@ class Index(object):
     }
 
     def __init__(self, name=None):
-        assert name, 'An index must have a non empty name'
-        assert not name.startswith('!') and ' ' not in name,\
-            "An index name must not start with a '!' and must not contain spaces"
+        # Mandatory keyword argument... right. Mainly for compatibility with
+        # the Search API's `Index` class
+        if not name:
+            raise ValueError('An index must have a non empty name')
+
+        if name.startswith("!") or " " in name:
+            raise ValueError("Index names can't start with a '!' or contain spaces")
+
         self.name = name
-        # The actual index object from the search API
+        # The actual index object from the Search API
         self._index = search_api.Index(name=name)
 
     def get_range(self, start_doc_id=None, **kwargs):
@@ -145,28 +155,39 @@ class Index(object):
         return list(documents)
 
     def list_documents(self, **kwargs):
-        """Deprecated. Use get_range instead"""
+        """Deprecated. Use `get_range` instead"""
         return self.get_range(**kwargs)
 
     def add(self, documents):
-        """Deprecated in SDK 1.7.4 and will removed in 1.7.5, use `put` instead
-        """
+        """Deprecated. Use `put` instead"""
         return self.put(documents)
 
+    def remove(self, doc_ids):
+        """Deprecated. Use `delete` instead"""
+        return self.delete(doc_ids)
+
     def get_range(self, document_class=None, **kwargs):
+        """Get a list of documents from the Search API without actually doing
+        a search.
+
+        Takes all the same kwargs that the Search API's get_range takes, plus a
+        `document_class` arg for which to construct document objects. If it's
+        omitted, the documents are returned as they would be normally from the
+        Search API.
+        """
         ids_only = kwargs.get("ids_only")
-
-        if not ids_only and document_class:
-            raise ValueError(
-                "If ids_only is False, you must pass a document_class to "
-                "instantiate with the results"
-            )
-
         docs = self._index.get_range(**kwargs)
 
         if ids_only:
-            return [RangeDocument(doc_id=doc.doc_id) for doc in docs]
-        return [construct_document(document_class, doc) for doc in docs]
+            # This goes against the Search API's return value for `ids_only`,
+            # where it returns a list of documents where each object only has
+            # its `doc_id` attr available. Returning JUST a list of IDs here
+            # keeps compatibility with the `query.SearchQuery`'s `ids_only`
+            # behaviour
+            return [doc.doc_id for doc in docs]
+        if document_class:
+            return [construct_document(document_class, doc) for doc in docs]
+        return docs
 
     def put(self, documents):
         """Add `documents` to this index"""
@@ -175,9 +196,11 @@ class Index(object):
             """Convenience function for getting the search API fields list
             from the given document `d`.
             """
-            return [self.FIELD_MAP[f.__class__](
-                name=n, value=f.to_search_value(getattr(d, n, None))
-                ) for n, f in d._meta.fields.items()]
+            fmap = self.FIELD_MAP
+            return [
+                fmap[type(f)](name=n, value=f.to_search_value(getattr(d, n, None)))
+                for n, f in d._meta.fields.items()
+            ]
 
         # If documents is actually just a single document, stick it in a list
         try:
@@ -187,33 +210,29 @@ class Index(object):
 
         # Construct the actual search API documents to add to the underlying
         # search API index
-        search_docs = []
-        for d in documents:
-            search_doc = search_api.Document(doc_id=d.doc_id, fields=get_fields(d))
-            search_docs.append(search_doc)
-
+        search_docs = [
+            search_api.Document(doc_id=d.doc_id, fields=get_fields(d))
+            for d in documents
+        ]
         return self._index.put(search_docs)
 
-    add = put
-
     def delete(self, doc_ids):
-        """Straight up proxy to the underlying index's `remove` method"""
+        """Delete documents with the given `doc_ids` from this index"""
         return self._index.delete(doc_ids)
-
-    remove = delete
 
     def purge(self):
         """Deletes all documents from this index.
 
-        Mainly only for testing/debugging, use your own method of deleting all
-        documents if you want to do so.
+        Probably don't use this on production unless the index only holds
+        a really small number of documents. Use App Engine's tasks to delete
+        documents in batches instead.
         """
-        docs = self.get_range(ids_only=True)
-        while docs:
-            self.delete([d.doc_id for d in docs])
-            docs = self.get_range(
+        docs_ids = self.get_range(ids_only=True)
+        while doc_ids:
+            self.delete(doc_ids)
+            doc_ids = self.get_range(
                 ids_only=True,
-                start_id=docs[-1],
+                start_id=doc_ids[-1],
                 include_start_object=False
             )
 
