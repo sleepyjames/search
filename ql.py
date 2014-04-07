@@ -240,6 +240,9 @@ class Query(object):
         if child is None:
             return None
         # `child` is a tuple of the form `(field__lookup, value)`
+
+        # TODO: Move this checking to SearchQuery.filter
+
         filter_lookup, value = child
         expr = FilterExpr(*child)
         # Get the field name to lookup without any comparison operators that
