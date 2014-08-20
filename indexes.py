@@ -148,15 +148,6 @@ class Index(object):
         # The actual index object from the Search API
         self._index = search_api.Index(name=name)
 
-    def get_range(self, start_doc_id=None, **kwargs):
-        """Return a list of documents in this index in `doc_id` order. I don't
-        entirely see the point in this and it's only really here to interface
-        with the search API.
-        """
-        documents = self._index.get_range(start_id=start_doc_id,
-            **kwargs)
-        return list(documents)
-
     def list_documents(self, **kwargs):
         """Deprecated. Use `get_range` instead"""
         return self.get_range(**kwargs)

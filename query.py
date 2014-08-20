@@ -114,7 +114,7 @@ class SearchQuery(object):
         self._results_response = None
 
         # XXX: raw query
-        self._raw_query = None 
+        self._raw_query = None
 
     def __nonzero__(self):
         return bool(self.query)
@@ -174,7 +174,7 @@ class SearchQuery(object):
         new_query.query = self.query
 
         # XXX: Copy raw query in clone
-        new_query._raw_query = self._raw_query 
+        new_query._raw_query = self._raw_query
 
         return new_query
 
@@ -261,7 +261,7 @@ class SearchQuery(object):
         keywords previously added to the query, but keep sorting, snippeting,
         etc.
         """
-        self._raw_query = query_string 
+        self._raw_query = query_string
         return self
 
     def score_with(self, match_scorer):
@@ -330,7 +330,7 @@ class SearchQuery(object):
         offset = self._offset
         limit = self._limit
         sort_expressions = self._sorts
-        
+
         if self._raw_query is not None:
             query_string = self._raw_query
         else:
