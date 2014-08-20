@@ -1,6 +1,8 @@
 import datetime
 
-# TODO: verify this
+from .errors import FieldError
+
+
 MAX_SEARCH_API_INT_64 = 18446744073709551616L
 
 MAX_SEARCH_API_INT = 2147483647 # 2**31 - 1
@@ -9,11 +11,8 @@ MIN_SEARCH_API_INT = -MAX_SEARCH_API_INT
 MAX_SEARCH_API_FLOAT = float(MAX_SEARCH_API_INT)
 MIN_SEARCH_API_FLOAT = -MAX_SEARCH_API_FLOAT
 
+
 class NOT_SET(object):
-    pass
-
-
-class FieldError(Exception):
     pass
 
 

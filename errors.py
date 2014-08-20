@@ -12,3 +12,7 @@ class BadValueError(Error):
 
 class DocumentClassRequiredError(Error):
     pass
+
+
+class FieldError(Error):
+    pass

@@ -1,6 +1,7 @@
 from datetime import date, datetime
 import unittest
 
+from .. import errors
 from .. import fields
 
 
@@ -18,7 +19,7 @@ class Base(object):
 
     def test_to_search_value_no_null_no_default(self):
         f = self.new_field(self.field_class, null=False)
-        self.assertRaises(fields.FieldError, f.to_search_value, None)
+        self.assertRaises(errors.FieldError, f.to_search_value, None)
 
     def test_to_search_value_null_default(self):
         f = self.new_field(self.field_class, default='THINGS', null=True)

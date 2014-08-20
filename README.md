@@ -1,7 +1,7 @@
 # thor
-\- a stupid name for an Appengine search API wrapper.
+\- a stupid name for an App Engine search API wrapper.
 
-thor is a wrapper for Google Appengine's search API that uses Django-like syntax for defining documents, and serching and filtering search indexes. And this, is it's potentially condescending readme.
+thor is a wrapper for Google App Engine's search API that uses Django-like syntax for defining documents, and serching and filtering search indexes. And this, is it's potentially condescending readme.
 
 ## Example
 
