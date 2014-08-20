@@ -180,6 +180,4 @@ CHARACTER_MAP = {
     u'ž': 'z',
 }
 
-FOREIGN_CHARACTERS = CHARACTER_MAP.keys()
-
-FOREIGN_CHARACTERS_REGEX = re.compile('([%s])' % u''.join(FOREIGN_CHARACTERS))
+FOREIGN_CHARACTERS_REGEX = re.compile(ur'([%s])' % u''.join(CHARACTER_MAP), re.U)
