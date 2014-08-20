@@ -1,7 +1,7 @@
 # coding: utf-8
 
-import unittest
 from datetime import date, datetime
+import unittest
 
 from .. import indexers
 

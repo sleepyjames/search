@@ -1,4 +1,4 @@
-import datetime, logging
+import datetime
 
 # TODO: verify this
 MAX_SEARCH_API_INT_64 = 18446744073709551616L

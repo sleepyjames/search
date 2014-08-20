@@ -1,5 +1,5 @@
-import unittest
 from datetime import date, datetime
+import unittest
 
 from .. import fields
 
