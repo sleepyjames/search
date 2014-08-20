@@ -35,7 +35,7 @@ class StartswithTest(BaseTest, unittest.TestCase):
 
     def test_2(self):
         string = u'HOwDy'
-        expected = [u'howdy', u'h', u'ho', u'how', u'howd']
+        expected = [u'HOwDy', u'H', u'HO', u'HOw', u'HOwD']
 
         self.assert_indexed(string, expected)
 
@@ -100,8 +100,8 @@ class ContainsTest(BaseTest, unittest.TestCase):
 
     def test_2(self):
         string = u'HOwDy'
-        expected = [u'howdy', u'h', u'ho', u'how', u'howd', 'o', 'ow', 'owd',
-            'owdy', 'w', 'wd', 'wdy', 'd', 'dy', 'y']
+        expected = [u'HOwDy', u'H', u'HO', u'HOw', u'HOwD', 'O', 'Ow', 'OwD',
+            'OwDy', 'w', 'wD', 'wDy', 'D', 'Dy', 'y']
 
         self.assert_indexed(string, expected)
 
@@ -173,7 +173,7 @@ class FirstletterTest(BaseTest, unittest.TestCase):
 
     def test_2(self):
         string = u'HOwDy'
-        expected = [u'h']
+        expected = [u'H']
 
         self.assert_indexed(string, expected)
 
