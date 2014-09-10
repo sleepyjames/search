@@ -160,7 +160,6 @@ class ContainsTest(BaseTest, unittest.TestCase):
 
 
 class FirstletterTest(BaseTest, unittest.TestCase):
-    kwarg_names = ['ignore']
 
     def indexer(self):
         return indexers.firstletter
