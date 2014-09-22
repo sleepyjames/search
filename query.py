@@ -40,13 +40,14 @@ def construct_document(document_class, document):
             values[f.name] = value
 
     snippets = {}
-    for expr in document.expressions:
-        # Only add the snippet if the document has a value for that field
-        # (otherwise some snippets come back as '__NONE__', etc.)
-        if values.get(expr.name):
-            snippets[expr.name] = clean_snippet(expr.value)
-        else:
-            snippets[expr.name] = None
+    if getattr(document, 'expressions', None):
+        for expr in document.expressions:
+            # Only add the snippet if the document has a value for that field
+            # (otherwise some snippets come back as '__NONE__', etc.)
+            if values.get(expr.name):
+                snippets[expr.name] = clean_snippet(expr.value)
+            else:
+                snippets[expr.name] = None
 
     # This is hacky as hell - TODO: Make this a proper thing
     def get_snippets():
