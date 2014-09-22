@@ -212,7 +212,9 @@ class Query(object):
         return self
 
     def get_filters(self):
-        return self._gathered_q.get_filters()
+        if self._gathered_q:
+            return self._gathered_q.get_filters()
+        return []
 
     def get_keywords(self):
         return self._keywords
