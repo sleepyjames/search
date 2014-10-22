@@ -1,5 +1,7 @@
 import datetime
 
+from google.appengine.api.search import GeoPoint
+
 from .errors import FieldError
 
 
@@ -313,4 +315,20 @@ class DateField(Field):
             return value.strftime(self.FORMAT)
         if isinstance(value, datetime.datetime):
             return value.date().strftime(self.FORMAT)
+        raise TypeError(value)
+
+
+class GeoField(Field):
+    """ A field representing a GeoPoint """
+    def __init__(self, default=None, null=False):
+        assert not (null or default), "GeoField must always be non-null"
+        self.default = None
+        self.null = False
+
+    def to_search_value(self, value):
+        value = super(GeoField, self).to_search_value(value)
+
+        if isinstance(value, GeoPoint):
+            return value
+
         raise TypeError(value)

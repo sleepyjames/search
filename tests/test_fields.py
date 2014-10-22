@@ -1,8 +1,10 @@
 from datetime import date, datetime
 import unittest
 
-from .. import errors
-from .. import fields
+from google.appengine.api.search import GeoPoint
+
+from search import errors
+from search import fields
 
 
 class Base(object):
@@ -183,3 +185,51 @@ class TestDateField(Base, unittest.TestCase):
         self.assertRaises(ValueError, f.to_search_value, 'some nonsense')
         self.assertRaises(TypeError, f.to_search_value, 17)
 
+
+class TestGeoField(Base, unittest.TestCase):
+    field_class = fields.GeoField
+
+    def test_to_search_value_no_null_default(self):
+        self.assertRaises(
+            AssertionError,
+            self.new_field,
+            self.field_class,
+            default=GeoPoint(latitude=3.14, longitude=3.14),
+            null=False)
+
+    def test_to_search_value_null_default(self):
+        self.assertRaises(
+            AssertionError,
+            self.new_field,
+            self.field_class,
+            default='THINGS',
+            null=True)
+
+    def test_to_search_value_no_null_no_default(self):
+        f = self.new_field(self.field_class, null=False)
+        self.assertRaises(TypeError, f.to_search_value, None)
+
+    def test_to_search_value_null_no_default(self):
+        self.assertRaises(
+            AssertionError,
+            self.new_field,
+            self.field_class,
+            default=None,
+            null=True)
+
+    def test_to_search_value_gp(self):
+        f = self.new_field(self.field_class)
+        gp = GeoPoint(latitude=4.2, longitude=4.2)
+        self.assertEquals(f.to_search_value(gp), gp)
+
+    def test_to_search_value_none(self):
+        f = self.new_field(self.field_class)
+        self.assertRaises(TypeError, f.to_search_value, None)
+
+    def test_to_search_value_errors(self):
+        f = self.new_field(self.field_class)
+
+        # TODO: maybe support these at some point?
+        self.assertRaises(TypeError, f.to_search_value, '3.14,3.14')
+        self.assertRaises(TypeError, f.to_search_value, 3.14)
+        self.assertRaises(TypeError, f.to_search_value, (3.14, 3.14,))

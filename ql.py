@@ -1,8 +1,15 @@
 import re
 
+from google.appengine.api import search as search_api
+
 from .errors import FieldLookupError, BadValueError
 
 FORBIDDEN_VALUE_REGEX = re.compile(ur'([^_.@ \w-]+)', re.UNICODE)
+
+
+class GeoQueryArguments(object):
+    def __init__(self, lat, lon, radius):
+        self.lat, self.lon, self.radius = lat, lon, radius
 
 
 class FilterExpr(object):
@@ -22,6 +29,11 @@ class FilterExpr(object):
         'lte': u'%s <= %s',
         'gt': u'%s > %s',
         'gte': u'%s >= %s',
+        'geo': u'distance(%s, geopoint(%f, %f)) < %d',
+        'geo_lt': u'distance(%s, geopoint(%f, %f)) < %d',
+        'geo_lte': u'distance(%s, geopoint(%f, %f)) <= %d',
+        'geo_gt': u'distance(%s, geopoint(%f, %f)) > %d',
+        'geo_gte': u'distance(%s, geopoint(%f, %f)) >= %d'
     }
 
     def __init__(self, k, v, valid_ops=None):
@@ -42,8 +54,15 @@ class FilterExpr(object):
     def __unicode__(self):
         prop_name, op = self._split_filter(self.prop_name)
         template = self.OPS[op]
+
+        if op.startswith('geo'):
+            if not isinstance(self.value, GeoQueryArguments):
+                raise TypeError(self.value)
+            return template % (
+                prop_name, self.value.lat, self.value.lon, self.value.radius)
+
         return template % (prop_name, self.value)
-    
+
     def __debug(self):
         """Enable debugging features"""
         # This is handy for testing: see Q.__debug for why

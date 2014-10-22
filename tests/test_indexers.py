@@ -3,7 +3,7 @@
 from datetime import date, datetime
 import unittest
 
-from .. import indexers
+from search import indexers
 
 
 class BaseTest(object):
