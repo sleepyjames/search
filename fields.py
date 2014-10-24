@@ -304,7 +304,9 @@ class DateField(Field):
         raise TypeError(value)
 
     def to_python(self, value):
-        if value == self.none_value():
+        if (value == self.none_value() or
+                (isinstance(value, datetime) and
+                    value.date() == self.none_value())):
             return None
         if isinstance(value, (date, datetime)):
             return value
