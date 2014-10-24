@@ -9,7 +9,8 @@ from .fields import (
     Field,
     BooleanField,
     HtmlField,
-    AtomField
+    AtomField,
+    GeoField
 )
 from .query import SearchQuery, construct_document
 
@@ -144,7 +145,8 @@ class Index(object):
         FloatField: search_api.NumberField,
         DateField: search_api.DateField,
         BooleanField: search_api.NumberField,
-        AtomField: search_api.AtomField
+        AtomField: search_api.AtomField,
+        GeoField: search_api.GeoField
     }
 
     def __init__(self, name=None, document_class=None):
