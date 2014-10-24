@@ -168,6 +168,12 @@ class HtmlField(TextField):
     pass
 
 
+class AtomField(TextField):
+    """A field for storing a non-tokenised string
+    """
+    pass
+
+
 class FloatField(Field):
     """A field representing a floating point value"""
 
