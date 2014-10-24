@@ -116,6 +116,20 @@ class DocumentModel(object):
         """
         return {}
 
+    def snippet_or_value(self):
+        """Goes through each of this document's snippeted fields and constructs
+        a dictionary where each field name points either to the snippet for
+        that field if there is one, or just the plain value for that field on
+        the document.
+        """
+        if not hasattr(self, "_snippets_or_values"):
+            snippets = self.get_snippets()
+            self._snippets_or_values = {
+                field: snippets.get(field) or getattr(self, field, None)
+                for field in self._meta.fields
+            }
+        return self._snippets_or_values
+
 
 class Index(object):
     """A search index. Provides methods for adding, removing and searching
