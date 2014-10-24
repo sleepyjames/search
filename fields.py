@@ -1,4 +1,4 @@
-import datetime
+from datetime import date, datetime
 
 from google.appengine.api.search import GeoPoint
 
@@ -285,31 +285,29 @@ class BooleanField(Field):
 
 
 class DateField(Field):
-    """A field representing a date object"""
+    """A field representing a date(time) object"""
 
-    FORMAT = '%Y-%m-%d'
+    DATE_FORMAT = '%Y-%m-%d'
+    DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
 
     def none_value(self):
-        return datetime.date.max
+        return date.max
 
     def to_search_value(self, value):
         value = super(DateField, self).to_search_value(value)
         if value is None:
             return self.none_value()
-        if isinstance(value, datetime.datetime):
-            return value.date()
-        if isinstance(value, datetime.date):
+        if isinstance(value, (date, datetime)):
             return value
         if isinstance(value, basestring):
-            return datetime.datetime.strptime(value, self.FORMAT).date()
+            return datetime.strptime(value, self.DATETIME_FORMAT).date()
         raise TypeError(value)
 
     def to_python(self, value):
         if value == self.none_value():
             return None
-        if isinstance(value, datetime.date):
+        if isinstance(value, (date, datetime)):
             return value
-        return datetime.datetime.strptime(value, self.FORMAT).date()
 
     def prep_value_for_filter(self, value):
         # The filter comparison value for a DateField should be a string of
@@ -317,10 +315,10 @@ class DateField(Field):
         value = super(DateField, self).prep_value_for_filter(value)
         if value is None:
             return self.none_value()
-        if isinstance(value, datetime.date):
-            return value.strftime(self.FORMAT)
-        if isinstance(value, datetime.datetime):
-            return value.date().strftime(self.FORMAT)
+        if isinstance(value, date):
+            return value.strftime(self.DATE_FORMAT)
+        if isinstance(value, datetime):
+            return value.date().strftime(self.DATE_FORMAT)
         raise TypeError(value)
 
 

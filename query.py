@@ -335,7 +335,7 @@ class SearchQuery(object):
         if self._raw_query is not None:
             query_string = self._raw_query
         else:
-            query_string = unicode(self.query)
+            query_string = str(self.query)
 
         kwargs = {
             "expressions": sort_expressions
