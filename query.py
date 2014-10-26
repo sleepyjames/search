@@ -30,14 +30,14 @@ def construct_document(document_class, document):
     TODO: Make all expressions available (not just snippets).
     """
     fields = document_class._meta.fields
-    doc = document_class(doc_id=document.doc_id)
-
     values = {}
+
     for f in document.fields:
-        if f.name in doc._meta.fields:
+        if f.name in fields:
             value = fields[f.name].prep_value_from_search(f.value)
-            setattr(doc, f.name, value)
             values[f.name] = value
+
+    doc = document_class(doc_id=document.doc_id, **values)
 
     snippets = {}
     if getattr(document, 'expressions', None):
