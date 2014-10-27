@@ -326,6 +326,9 @@ class SearchQuery(object):
             if isinstance(v, basestring)
         ]
         snippet_words += self.query.get_keywords()
+        # If someone quotes a seach query the snippeting will break, so we
+        # have to strip them here
+        snippet_words = [w.strip('"') for w in snippet_words]
         return u" ".join(snippet_words)
 
     def get_snippet_expressions(self, snippet_words):
