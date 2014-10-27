@@ -23,6 +23,13 @@ def clean_snippet(snippet_value):
     # rudimentary and probably won't survive future Search API updates.
     if not "<b>" in snippet_value:
         return None
+    else:
+        # If the text has been snippeted, if there are no ellipses at the end
+        # of the string, the search API adds a superfluous '.' to the end, so
+        # strip that here. Not sure if it does this when there's already a '.'
+        # at the end but...
+        if snippet_value.endswith(".") and not snippet_value.endswith("..."):
+            snippet_value = snippet_value[:-1]
     return snippet_value
 
 
