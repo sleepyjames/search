@@ -4,6 +4,13 @@ from google.appengine.api import search as search_api
 
 from . import ql
 from .fields import NOT_SET
+from .indexers import PUNCTUATION_REGEX
+
+
+def quote_if_special_characters(value):
+    if PUNCTUATION_REGEX.match(value):
+        return '"{}"'.format(value)
+    return value
 
 
 def clean_snippet(snippet_value):
@@ -253,7 +260,7 @@ class SearchQuery(object):
         return self
 
     def keywords(self, keywords):
-        self.query.add_keywords(keywords)
+        self.query.add_keywords(quote_if_special_characters(keywords))
         return self
 
     def raw(self, query_string):
