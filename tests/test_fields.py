@@ -172,9 +172,16 @@ class TestDateField(Base, unittest.TestCase):
         f = self.new_field(self.field_class, default=date(2012, 8, 3), null=False)
         self.assertEquals(f.to_search_value(date(1989, 8, 3)), date(1989, 8, 3))
     
+    def test_to_search_value_date(self):
+        f = self.new_field(self.field_class)
+        self.assertEquals(
+            f.to_search_value(datetime(2012, 8, 3)), datetime(2012, 8, 3))
+
     def test_to_search_value_datetime(self):
         f = self.new_field(self.field_class)
-        self.assertEquals(f.to_search_value(datetime(2012, 8, 3, 23, 49)), date(2012, 8, 3))
+        self.assertEquals(
+            f.to_search_value(datetime(2012, 8, 3, 23, 49)),
+            datetime(2012, 8, 3, 23, 49))
     
     def test_to_search_value_datestring(self):
         f = self.new_field(self.field_class)
