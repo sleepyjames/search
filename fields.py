@@ -300,7 +300,12 @@ class DateField(Field):
         if isinstance(value, (date, datetime)):
             return value
         if isinstance(value, basestring):
-            return datetime.strptime(value, self.DATETIME_FORMAT).date()
+            for fmt in (self.DATETIME_FORMAT, self.DATE_FORMAT):
+                try:
+                    return datetime.strptime(value, fmt).date()
+                except ValueError:
+                    pass
+            raise ValueError
         raise TypeError(value)
 
     def to_python(self, value):
