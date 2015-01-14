@@ -91,5 +91,5 @@ class TestDateQuery(unittest.TestCase):
         query.add_q(Q(bar__gt=today))
 
         self.assertEqual(
-            u"(bar > {0} AND NOT {1})".format(today.isoformat(), DateField().none_value()),
+            u"(bar > {0} AND NOT bar:{1})".format(today.isoformat(), DateField().none_value()),
             unicode(query))

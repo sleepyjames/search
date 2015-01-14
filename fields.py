@@ -332,7 +332,7 @@ class DateField(Field):
             raise TypeError(value)
 
         if filter_expr.op.startswith("gt"):
-            filter_value += " AND NOT {0}".format(self.none_value())
+            filter_value += " AND NOT {0}:{1}".format(filter_expr.prop_name, self.none_value())
 
         return filter_value
 
