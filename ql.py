@@ -220,6 +220,16 @@ class Query(object):
         """
         return FORBIDDEN_VALUE_REGEX.sub('', value)
 
+    def _clone(self):
+        new_q = type(self)(
+            self.document_class
+        )
+
+        new_q._gathered_q = self._gathered_q
+        new_q._keywords = self._keywords
+
+        return new_q
+
     def add_q(self, q):
         """Add a `Q` object to the internal reduction of gathered Qs,
         effectively adding a filter clause to the querystring.

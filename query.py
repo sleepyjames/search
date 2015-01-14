@@ -186,7 +186,7 @@ class SearchQuery(object):
         new_query._sorts = self._sorts
         new_query._snippeted_fields = self._snippeted_fields
         new_query._returned_expressions = self._returned_expressions
-        new_query.query = self.query
+        new_query.query = self.query._clone()
 
         # XXX: Copy raw query in clone
         new_query._raw_query = self._raw_query
@@ -234,14 +234,16 @@ class SearchQuery(object):
         """Add a filter constraint to the query from the `(prop name, value)`
         pairs in kwargs, similar to Django syntax:
         """
+        cloned = self._clone()
         # *args are `Q` objects
         for q in args:
-            self.query.add_q(q)
+            cloned.query.add_q(q)
         if kwargs:
-            self.query.add_q(ql.Q(**kwargs))
-        return self
+            cloned.query.add_q(ql.Q(**kwargs))
+        return cloned
 
     def order_by(self, *fields):
+        cloned = self._clone()
         document_fields = self.document_class._meta.fields
 
         for expr in fields:
@@ -258,47 +260,52 @@ class SearchQuery(object):
             field = document_fields[expression]
             default_value = (field.default if field.default is not NOT_SET
                 else field.none_value())
-            self._sorts.append(
+            cloned._sorts.append(
                 search_api.SortExpression(
                     expression=expression,
                     default_value=default_value,
                     direction=direction
                 )
             )
-        return self
+        return cloned
 
     def keywords(self, keywords):
-        self.query.add_keywords(quote_if_special_characters(keywords))
-        return self
+        cloned = self._clone()
+        cloned.query.add_keywords(quote_if_special_characters(keywords))
+        return cloned
 
     def raw(self, query_string):
         """Execute a raw query directly. This will overwrite any filters or
         keywords previously added to the query, but keep sorting, snippeting,
         etc.
         """
-        self._raw_query = query_string
-        return self
+        cloned = self._clone()
+        cloned._raw_query = query_string
+        return cloned
 
     def score_with(self, match_scorer):
         """Add a Search API scorer to this query"""
-        self._match_scorer = match_scorer
-        return self
+        cloned = self._clone()
+        cloned._match_scorer = match_scorer
+        return cloned
 
     def snippet(self, *fields):
         """Add fields to get snippets for when this query is run"""
+        cloned = self._clone()
         for field_name in fields:
             if field_name not in self.document_class._meta.fields:
                 raise ValueError(
                     "Can't snippet field {} since {} has no field by that name"
                     .format(field_name, self.document_class.__name__)
                 )
-        self._snippeted_fields.extend(fields)
-        return self
+        cloned._snippeted_fields.extend(fields)
+        return cloned
 
     def add_expression(self, name, expression):
+        cloned = self._clone()
         expr = search_api.FieldExpression(name=name, expression=expression)
-        self._returned_expressions.append(expr)
-        return self
+        cloned._returned_expressions.append(expr)
+        return cloned
 
     def get_snippet_words(self):
         """Get the words in the query that should be used for getting snippets
