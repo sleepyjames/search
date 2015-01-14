@@ -103,7 +103,7 @@ class Field(object):
         """
         return value
 
-    def prep_value_for_filter(self, value):
+    def prep_value_for_filter(self, value, **kwargs):
         """Different from `to_search_value`, this converts the value to an
         appropriate value for filtering it by. This is proabably only useful
         for DateFields, where the filter value in the query is different to
@@ -155,7 +155,7 @@ class TextField(Field):
             return value
         return IndexedValue(value)
 
-    def prep_value_for_filter(self, value):
+    def prep_value_for_filter(self, value, **kwargs):
         # We don't want to index the given text value when filtering with it
         # so pretend it's already been indexed by wrapping it in IndexedValue.
         return self.to_search_value(IndexedValue(value))
@@ -209,7 +209,7 @@ class FloatField(Field):
             return None
         return float(value)
 
-    def prep_value_for_filter(self, value):
+    def prep_value_for_filter(self, value, **kwargs):
         return str(self.to_search_value(value))
 
 
@@ -248,7 +248,7 @@ class IntegerField(Field):
             return None
         return int(value)
 
-    def prep_value_for_filter(self, value):
+    def prep_value_for_filter(self, value, **kwargs):
         return str(self.to_search_value(value))
 
 
@@ -277,7 +277,7 @@ class BooleanField(Field):
             return None
         return bool(int(value))
 
-    def prep_value_for_filter(self, value):
+    def prep_value_for_filter(self, value, **kwargs):
         return self.to_search_value(value)
 
     def prep_value_from_search(self, value):
@@ -316,18 +316,25 @@ class DateField(Field):
         if isinstance(value, (date, datetime)):
             return value
 
-    def prep_value_for_filter(self, value):
+    def prep_value_for_filter(self, value, filter_expr):
         # The filter comparison value for a DateField should be a string of
         # the form 'YYYY-MM-DD'
         value = super(DateField, self).prep_value_for_filter(value)
         if value is None:
             return self.none_value()
-        if isinstance(value, date):
-            return value.strftime(self.DATE_FORMAT)
-        if isinstance(value, datetime):
-            return value.date().strftime(self.DATE_FORMAT)
-        raise TypeError(value)
 
+        filter_value = None
+        if isinstance(value, date):
+            filter_value = value.strftime(self.DATE_FORMAT)
+        elif isinstance(value, datetime):
+            filter_value = value.date().strftime(self.DATE_FORMAT)
+        else:
+            raise TypeError(value)
+
+        if filter_expr.op.startswith("gt"):
+            filter_value += " AND NOT {0}".format(self.none_value())
+
+        return filter_value
 
 class GeoField(Field):
     """ A field representing a GeoPoint """

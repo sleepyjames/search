@@ -37,31 +37,35 @@ class FilterExpr(object):
     }
 
     def __init__(self, k, v, valid_ops=None):
-        self.prop_name, self.value = k, v
+        self.prop_expr, self.value = k, v
+        self.prop_name, self.op = self._split_filter(self.prop_expr)
         self.valid_ops = valid_ops or self.OPS
 
     def __str__(self):
         """`str()`ing a `FilterExpr` returns the string for this filter
         formatted in the search API syntax.
         """
-        prop_name, op = self._split_filter(self.prop_name)
+        prop_expr, op = self._split_filter(self.prop_expr)
         template = self.OPS[op]
-        return template % (prop_name, self.value)
+        return template % (prop_expr, self.value)
 
     def get_value(self):
         return self.__unicode__()
 
     def __unicode__(self):
-        prop_name, op = self._split_filter(self.prop_name)
-        template = self.OPS[op]
+        template = self.OPS[self.op]
 
-        if op.startswith('geo'):
+        if self.op.startswith('geo'):
             if not isinstance(self.value, GeoQueryArguments):
                 raise TypeError(self.value)
             return template % (
-                prop_name, self.value.lat, self.value.lon, self.value.radius)
+                self.prop_name,
+                self.value.lat,
+                self.value.lon,
+                self.value.radius
+            )
 
-        return template % (prop_name, self.value)
+        return template % (self.prop_name, self.value)
 
     def __debug(self):
         """Enable debugging features"""
@@ -71,25 +75,27 @@ class FilterExpr(object):
     def __undebug(self):
         if 'is' in self.OPS:
             del self.OPS['is']
-    
-    def _split_filter(self, prop_name):
-        """Splits `prop_name` by `self.SEPARATOR` and returns the parts,
+
+    def _split_filter(self, prop_expr):
+        """Splits `prop_expr` by `self.SEPARATOR` and returns the parts,
         with the comparison operator defaulting to a sensible value if it's not
         in `self.OPS` or if it's missing.
 
-        >>> prop_name = 'rating__lte'
-        >>> self._split_filter(prop_name)
+        >>> prop_expr = 'rating__lte'
+        >>> self._split_filter(prop_expr)
         ['rating', 'lte']
-        >>> prop_name = 'rating'
-        >>> self._split_filter(prop_name)
+        >>> prop_expr = 'rating'
+        >>> self._split_filter(prop_expr)
         ['rating', self.DEFAULT_OP]
         """
         op_name = 'exact'
-        if self.SEPARATOR in prop_name:
-            prop_name, op_name = prop_name.split(self.SEPARATOR)
+        if self.SEPARATOR in prop_expr:
+            prop_name, op_name = prop_expr.split(self.SEPARATOR)
             if op_name not in self.OPS:
                 # XXX: raise an error here?
                 op_name = self.DEFAULT_OP
+        else:
+            prop_name = prop_expr
         return [prop_name, op_name]
 
 
@@ -268,20 +274,24 @@ class Query(object):
         expr = FilterExpr(*child)
         # Get the field name to lookup without any comparison operators that
         # might be present in the field name string
-        fname = expr._split_filter(filter_lookup)[0]
         doc_fields = self.document_class._meta.fields
 
         # Can't filter on fields not in the document's fields
-        if fname not in doc_fields:
+        if expr.prop_name not in doc_fields:
             raise FieldLookupError(u'Prop name %s not in the field list for %s'
-                % (fname, self.document_class.__name__))
+                % (expr.prop_name, self.document_class.__name__))
 
-        field = doc_fields[fname]
+        field = doc_fields[expr.prop_name]
         try:
-            value = field.prep_value_for_filter(value)
+            value = field.prep_value_for_filter(value, filter_expr=expr)
         except (TypeError, ValueError):
-            raise BadValueError(u'Value %s invalid for filtering on %s.%s (a %s)'
-                % (value, self.document_class.__name__, fname, type(field)))
+            raise BadValueError(
+                u'Value %s invalid for filtering on %s.%s (a %s)' % (
+                    value,
+                    self.document_class.__name__,
+                    expr.prop_name,
+                    type(field))
+                )
         # Create a new filter expression with the old filter lookup but with
         # the newly converted value
         return unicode(FilterExpr(filter_lookup, value).get_value())

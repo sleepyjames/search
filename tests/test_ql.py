@@ -1,16 +1,18 @@
+import datetime
 import unittest
 
 from search.ql import Query, Q, GeoQueryArguments
-from search.fields import TextField, GeoField
+from search.fields import TextField, GeoField, DateField
 from search.indexes import DocumentModel
 
 
 class FakeDocument(DocumentModel):
     foo = TextField()
+    bar = DateField()
 
 
 class FakeGeoDocument(DocumentModel):
-    my_loc = GeoField()
+    my_loc = GeoField()    
 
 
 class TestKeywordQuery(unittest.TestCase):
@@ -68,4 +70,26 @@ class TestGeoQuery(unittest.TestCase):
         query.add_q(Q(my_loc__geo_gte=GeoQueryArguments(3.14, 6.28, 20)))
         self.assertEqual(
             u"(distance(my_loc, geopoint(3.140000, 6.280000)) >= 20)",
+            unicode(query))
+
+
+class TestDateQuery(unittest.TestCase):
+    def test_before(self):
+        query = Query(FakeDocument)
+
+        today = datetime.date.today()
+        query.add_q(Q(bar__lt=today))
+
+        self.assertEqual(
+            u"(bar < {0})".format(today.isoformat()),
+            unicode(query))
+
+    def test_after(self):
+        query = Query(FakeDocument)
+
+        today = datetime.date.today()
+        query.add_q(Q(bar__gt=today))
+
+        self.assertEqual(
+            u"(bar > {0} AND NOT {1})".format(today.isoformat(), DateField().none_value()),
             unicode(query))
