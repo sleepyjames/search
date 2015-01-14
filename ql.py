@@ -23,8 +23,8 @@ class FilterExpr(object):
     # comparison operator string is mapped to its equivalent query syntax
     # template
     OPS = {
-        'contains': u'%s:"%s"',
-        'exact': u'%s = %s',
+        'contains': u'%s:(%s)',
+        'exact': u'%s:"%s"',
         'lt': u'%s < %s',
         'lte': u'%s <= %s',
         'gt': u'%s > %s',

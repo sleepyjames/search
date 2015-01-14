@@ -4,6 +4,13 @@ from google.appengine.api import search as search_api
 
 from . import ql
 from .fields import NOT_SET
+from .indexers import PUNCTUATION_REGEX
+
+
+def quote_if_special_characters(value):
+    if PUNCTUATION_REGEX.match(value):
+        return '"{}"'.format(value)
+    return value
 
 
 def clean_snippet(snippet_value):
@@ -16,6 +23,13 @@ def clean_snippet(snippet_value):
     # rudimentary and probably won't survive future Search API updates.
     if not "<b>" in snippet_value:
         return None
+    else:
+        # If the text has been snippeted, if there are no ellipses at the end
+        # of the string, the search API adds a superfluous '.' to the end, so
+        # strip that here. Not sure if it does this when there's already a '.'
+        # at the end but...
+        if snippet_value.endswith(".") and not snippet_value.endswith("..."):
+            snippet_value = snippet_value[:-1]
     return snippet_value
 
 
@@ -254,7 +268,7 @@ class SearchQuery(object):
         return self
 
     def keywords(self, keywords):
-        self.query.add_keywords(keywords)
+        self.query.add_keywords(quote_if_special_characters(keywords))
         return self
 
     def raw(self, query_string):
@@ -313,6 +327,9 @@ class SearchQuery(object):
             if isinstance(v, basestring)
         ]
         snippet_words += self.query.get_keywords()
+        # If someone quotes a seach query the snippeting will break, so we
+        # have to strip them here
+        snippet_words = [w.strip('"') for w in snippet_words]
         return u" ".join(snippet_words)
 
     def get_snippet_expressions(self, snippet_words):
