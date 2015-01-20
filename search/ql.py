@@ -142,9 +142,14 @@ class Q(object):
         """Recursively stringify this expression and its children."""
         tmpl = u'(%s)'
         if self.inverted:
-            # TODO: this is messy, must be some nicer way I can't think of
-            tmpl = u' '.join([u'(%s' % self.NOT, u'%s)'])
-        return tmpl % (u' %s ' % self.conn).join([str(c) for c in self.children])
+            tmpl = "({0} {{0}})".format(self.NOT)
+        else:
+            tmpl = u'({0})'
+
+        conn_fmt = u' {0} '.format(self.conn)
+        joined_nodes = conn_fmt.join([str(c) for c in self.children])
+
+        return tmpl.format(joined_nodes)
 
     def __debug(self):
         """Enable debugging features. Handy for testing with stuff like:
