@@ -32,14 +32,14 @@ class TestSearchQueryClone(unittest.TestCase):
         q1 = q.filter(~Q(foo="neg2"))
 
         self.assertEqual(
-            u'(((foo:"bar") OR (foo:"baz")) AND NOT ((foo:"neg")))',
+            u'(((foo:"bar") OR (foo:"baz")) AND NOT (foo:"neg"))',
             unicode(q.query)
         )
 
         self.assertEqual(
             u'('
-            '(((foo:"bar") OR (foo:"baz")) AND NOT ((foo:"neg"))) '
-            'AND NOT ((foo:"neg2"))'
+            '(((foo:"bar") OR (foo:"baz")) AND NOT (foo:"neg")) '
+            'AND NOT (foo:"neg2")'
             ')',
             unicode(q1.query)
         )

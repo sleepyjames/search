@@ -106,6 +106,7 @@ class Q(object):
     DEFAULT = AND
 
     def __init__(self, **kwargs):
+        self.kwargs = kwargs
         children = kwargs.items()
 
         self.children = []
@@ -133,9 +134,8 @@ class Q(object):
         return self._combine(other, self.OR)
 
     def __invert__(self):
-        obj = type(self)()
-        obj.add(self)
-        obj.inverted = True
+        obj = type(self)(**self.kwargs)
+        obj.inverted = not self.inverted
         return obj
 
     def __str__(self):
