@@ -249,7 +249,7 @@ class Index(object):
         a really small number of documents. Use App Engine's tasks to delete
         documents in batches instead.
         """
-        docs_ids = self.get_range(ids_only=True)
+        doc_ids = self.get_range(ids_only=True)
         while doc_ids:
             self.delete(doc_ids)
             doc_ids = self.get_range(
