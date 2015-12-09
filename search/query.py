@@ -136,10 +136,11 @@ class SearchQuery(object):
 
     def __len__(self):
         if self._number_found is None:
-            if not self._has_set_limits:
-                self._set_limits(0, 1)
-            self._run_query()
-            self._reset_limits()
+            clone = self._clone()
+            clone._set_limits(0, 1)
+            clone._run_query()
+            clone.ids_only = True
+            return clone._number_found
         return self._number_found
 
     def __iter__(self):
