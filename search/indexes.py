@@ -85,6 +85,9 @@ class DocumentModel(object):
             setattr(self, name, val)
 
         self.doc_id = unicode(kwargs.get('doc_id', '')).encode('utf-8') or None
+        # TODO: Stop this potentially colliding with a defined field name and/or
+        # define a nicer API for setting the value
+        self._rank = kwargs.get("_rank")
 
     def __getattribute__(self, name):
         """Make sure that any attribute accessed on document classes returns the
@@ -233,7 +236,11 @@ class Index(object):
         # Construct the actual search API documents to add to the underlying
         # search API index
         search_docs = [
-            search_api.Document(doc_id=d.doc_id, fields=get_fields(d))
+            search_api.Document(
+                doc_id=d.doc_id,
+                rank=d._rank,
+                fields=get_fields(d)
+            )
             for d in documents
         ]
         return self._index.put(search_docs)
