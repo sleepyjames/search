@@ -12,7 +12,7 @@ class FakeDocument(DocumentModel):
 
 
 class FakeGeoDocument(DocumentModel):
-    my_loc = GeoField()    
+    my_loc = GeoField()
 
 
 class TestKeywordQuery(unittest.TestCase):
@@ -34,6 +34,21 @@ class TestQuery(unittest.TestCase):
             u"(foo > 42)",
             unicode(query))
 
+    def test_add_q_or(self):
+        """Test that two Q objects can be added to a query without needing to wrap them in
+        another Q object
+        """
+        query = Query(FakeDocument)
+
+        q_1 = Q(foo=42)
+        q_2 = Q(foo=128)
+
+        query.add_q(q_1)
+        query.add_q(q_2, conn=Q.OR)
+
+        self.assertEqual(
+            u'((foo:"42") OR (foo:"128"))',
+            unicode(query))
 
 class TestGeoQuery(unittest.TestCase):
 
