@@ -180,7 +180,7 @@ class Q(object):
         obj.add(other)
         obj.conn = conn
         return obj
-    
+
     def add(self, child):
         self.children.append(child)
 
@@ -235,14 +235,19 @@ class Query(object):
 
         return new_q
 
-    def add_q(self, q):
+    def add_q(self, q, conn=None):
         """Add a `Q` object to the internal reduction of gathered Qs,
         effectively adding a filter clause to the querystring.
         """
         if self._gathered_q is None:
             self._gathered_q = q
             return self
-        conn = self._gathered_q.DEFAULT.lower()
+
+        if not conn:
+            conn = self._gathered_q.DEFAULT
+
+        conn = conn.lower()
+
         self._gathered_q = getattr(self._gathered_q, '__%s__' % conn)(q)
         return self
 
