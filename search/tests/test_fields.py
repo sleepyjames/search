@@ -194,6 +194,13 @@ class TestDateField(Base, unittest.TestCase):
         self.assertRaises(ValueError, f.to_search_value, 'some nonsense')
         self.assertRaises(TypeError, f.to_search_value, 17)
 
+    def test_error_using_aware_datetime(self):
+        xmas = datetime(2016, 12, 25, 0, 0, tzinfo=timezone.utc)
+        field = self.new_field(fields.DateField)
+
+        with self.assertRaisesRegexp(TypeError, r'Datetime values must be offset-naive'):
+            field.to_search_value(xmas)
+
 
 class TestDateTimeField(Base, unittest.TestCase):
     field_class = fields.DateTimeField

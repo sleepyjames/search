@@ -313,8 +313,15 @@ class DateField(Field):
         value = super(DateField, self).to_search_value(value)
         if value is None:
             return self.none_value()
-        if isinstance(value, (date, datetime)):
+
+        if isinstance(value, datetime):
+            if timezone.is_tz_aware(value):
+                raise TypeError('Datetime values must be offset-naive')
             return value
+
+        if isinstance(value, date):
+            return value
+
         if isinstance(value, basestring):
             for fmt in (self.DATETIME_FORMAT, self.DATE_FORMAT):
                 try:
