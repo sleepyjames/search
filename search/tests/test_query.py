@@ -1,12 +1,16 @@
+import datetime
 import unittest
 
 from search.indexes import DocumentModel
-from search.fields import TextField
+from search.fields import TZDateTimeField, TextField
 from search.query import SearchQuery
 from search.ql import Q
+from search import timezone
+
 
 class FakeDocument(DocumentModel):
     foo = TextField()
+    created = TZDateTimeField()
 
 
 class TestSearchQueryClone(unittest.TestCase):
@@ -43,3 +47,12 @@ class TestSearchQueryClone(unittest.TestCase):
             ')',
             unicode(q1.query)
         )
+
+
+class TestSearchQueryFilter(unittest.TestCase):
+    def test_filter_on_datetime_field(self):
+        xmas = datetime.datetime(2016, 12, 31, 12, tzinfo=timezone.utc)
+        q = SearchQuery('dummy', document_class=FakeDocument)
+        q = q.filter(created__gt=xmas)
+
+        self.assertEqual(unicode(q.query), u'(created > 1483185600)')

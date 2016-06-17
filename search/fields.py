@@ -1,7 +1,8 @@
 from datetime import date, datetime
 
-from google.appengine.api.search import GeoPoint
+from google.appengine.api import search as search_api
 
+from . import timezone
 from .errors import FieldError
 
 
@@ -29,7 +30,7 @@ class Field(object):
     There is some magic that happens upon setting/getting values on/from
     properties that subclass `Field`. When setting a value, it is (validated)
     and then converted to the search API value. When it's accessed, it's then
-    converted back to it's python value. There's an extra step before setting
+    converted back to its python value. There's an extra step before setting
     field values when instantiating document objects with search results, where
     `field.prep_value_from_search` is called before setting the attribute. The
     following information is offered as clarity on the process.
@@ -62,7 +63,11 @@ class Field(object):
     >>> old_value = object.__getattribute__('field')
     >>> obj._meta.fields['field'].to_python(old_value)
     'some value'
+
+    Each Field sub-class must declare what class it uses from the search API by
+    setting the Field.search_api_field attribute.
     """
+    search_api_field = None
 
     def __init__(self, default=NOT_SET, null=True):
         self.default = default
@@ -117,6 +122,7 @@ class TextField(Field):
     which is a function that splits the string into tokens before it's passed
     to the search API.
     """
+    search_api_field = search_api.TextField
 
     def __init__(self, indexer=None, **kwargs):
         self.indexer = indexer
@@ -165,17 +171,18 @@ class HtmlField(TextField):
     """A field for a string of HTML. This inherits directly form TextField as
     there is no need to treat HTML differently from text, except to tell the
     Search API it's HTML."""
-    pass
+    search_api_field = search_api.HtmlField
 
 
 class AtomField(TextField):
     """A field for storing a non-tokenised string
     """
-    pass
+    search_api_field = search_api.AtomField
 
 
 class FloatField(Field):
     """A field representing a floating point value"""
+    search_api_field = search_api.NumberField
 
     def __init__(self, minimum=None, maximum=None, **kwargs):
         """If minimum and maximum are given, any value assigned to this field
@@ -215,6 +222,7 @@ class FloatField(Field):
 
 class IntegerField(Field):
     """A field representing an integer value"""
+    search_api_field = search_api.NumberField
 
     def __init__(self, minimum=None, maximum=None, **kwargs):
         """If minimum and maximum are given, any value assigned to this field
@@ -254,6 +262,7 @@ class IntegerField(Field):
 
 class BooleanField(Field):
     """A field representing a True/False value"""
+    search_api_field = search_api.NumberField
 
     def none_value(self):
         return MIN_SEARCH_API_INT
@@ -285,10 +294,17 @@ class BooleanField(Field):
 
 
 class DateField(Field):
-    """A field representing a date(time) object"""
+    """A field representing a date(time) object
+
+    This field is only indexed by date. The time portion is ignored.
+    See `DateTimeField` and `TZDateTimeField` for an implementation that will
+    support a more precise comparator.
+    """
 
     DATE_FORMAT = '%Y-%m-%d'
     DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
+
+    search_api_field = search_api.DateField
 
     def none_value(self):
         return date.max
@@ -297,8 +313,15 @@ class DateField(Field):
         value = super(DateField, self).to_search_value(value)
         if value is None:
             return self.none_value()
-        if isinstance(value, (date, datetime)):
+
+        if isinstance(value, datetime):
+            if timezone.is_tz_aware(value):
+                raise TypeError('Datetime values must be offset-naive')
             return value
+
+        if isinstance(value, date):
+            return value
+
         if isinstance(value, basestring):
             for fmt in (self.DATETIME_FORMAT, self.DATE_FORMAT):
                 try:
@@ -336,8 +359,83 @@ class DateField(Field):
 
         return filter_value
 
+
+class DateTimeField(Field):
+    """Allows searching by date including the time component.
+
+    It works by representing a Python datetime as a unix timestamp and
+    storing the value in a number field. This means you can only use datetimes
+    between datetime(1901, 12, 13, 20, 45, 54) and datetime(2038, 1, 19, 3, 14, 7),
+    and it ignores microseconds. Using a value outside that range will raise
+    a ValueError.
+
+    It will raise a TypeError if used with offset-aware datetime instances.
+    """
+    search_api_field = search_api.NumberField
+
+    def none_value(self):
+        return MIN_SEARCH_API_INT
+
+    def to_search_value(self, value):
+        value = super(DateTimeField, self).to_search_value(value)
+
+        if value is None or value == self.none_value():
+            return self.none_value()
+
+        if timezone.is_tz_aware(value):
+            if value == self.default:
+                # The TZ-aware sub-class can set a default with a tzinfo.
+                value = value.astimezone(timezone.utc)
+                value = value.replace(tzinfo=None)
+            else:
+                raise TypeError('Datetime values must be offset-naive')
+
+        timestamp = timezone.datetime_to_timestamp(value)
+
+        # You aren't allowed to have the min value, we reserve that for None.
+        if not (MIN_SEARCH_API_INT < timestamp <= MAX_SEARCH_API_INT):
+            raise ValueError('Datetime out of range')
+
+        return timestamp
+
+    def to_python(self, value):
+        if value == self.none_value():
+            return None
+        else:
+            return timezone.timestamp_to_datetime(value)
+
+    def prep_value_for_filter(self, value, filter_expr=None):
+        return self.to_search_value(value)
+
+    def prep_value_from_search(self, value):
+        return self.to_python(value)
+
+
+class TZDateTimeField(DateTimeField):
+    """Like DateTimeField, but raises a TypeError if used with offset-naive
+    datetime instances.
+    """
+    def to_search_value(self, value):
+        if isinstance(value, datetime):
+            try:
+                value = value.astimezone(timezone.utc)
+            except ValueError:
+                raise TypeError('Datetime values must be offset-aware')
+
+            value = value.replace(tzinfo=None)
+
+        return super(TZDateTimeField, self).to_search_value(value)
+
+    def to_python(self, value):
+        value = super(TZDateTimeField, self).to_python(value)
+
+        return value.replace(tzinfo=timezone.utc)
+
+
 class GeoField(Field):
     """ A field representing a GeoPoint """
+    search_api_field = search_api.GeoField
+
     def __init__(self, default=None, null=False):
         assert not (null or default), "GeoField must always be non-null"
         self.default = None
@@ -346,7 +444,7 @@ class GeoField(Field):
     def to_search_value(self, value):
         value = super(GeoField, self).to_search_value(value)
 
-        if isinstance(value, GeoPoint):
+        if isinstance(value, search_api.GeoPoint):
             return value
 
         raise TypeError(value)

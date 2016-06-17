@@ -57,7 +57,13 @@ def contains(string, **kwargs):
     string = clean_value(string)
     index = []
 
-    for word in string.split():
+    words = string.split()
+
+    # remove spaces from a string so one can search by
+    # more than one word at a time
+    words.append(string.replace(u' ', u''))
+
+    for word in words:
         if word not in index:
             for i in range(len(word)):
                 segments = startswith(word[i:], **kwargs)
@@ -81,7 +87,14 @@ def startswith(string, **kwargs):
     """
     string = clean_value(string)
     index = []
-    for word in string.split():
+
+    words = string.split()
+
+    # remove spaces from a string so one can search by
+    # more than one word at a time
+    words.append(string.replace(u' ', u''))
+
+    for word in words:
         if word not in index:
             segments = _startswith(word, **kwargs)
             index += segments

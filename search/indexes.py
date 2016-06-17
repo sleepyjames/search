@@ -1,17 +1,7 @@
 from google.appengine.api import search as search_api
 
 from .errors import DocumentClassRequiredError
-from .fields import (
-    TextField,
-    IntegerField,
-    FloatField,
-    DateField,
-    Field,
-    BooleanField,
-    HtmlField,
-    AtomField,
-    GeoField
-)
+from .fields import Field
 from .query import SearchQuery, construct_document
 
 
@@ -85,6 +75,9 @@ class DocumentModel(object):
             setattr(self, name, val)
 
         self.doc_id = unicode(kwargs.get('doc_id', '')).encode('utf-8') or None
+        # TODO: Stop this potentially colliding with a defined field name and/or
+        # define a nicer API for setting the value
+        self._rank = kwargs.get("_rank")
 
     def __getattribute__(self, name):
         """Make sure that any attribute accessed on document classes returns the
@@ -137,18 +130,6 @@ class Index(object):
     """A search index. Provides methods for adding, removing and searching
     documents in this index.
     """
-
-    FIELD_MAP = {
-        TextField: search_api.TextField,
-        HtmlField: search_api.HtmlField,
-        IntegerField: search_api.NumberField,
-        FloatField: search_api.NumberField,
-        DateField: search_api.DateField,
-        BooleanField: search_api.NumberField,
-        AtomField: search_api.AtomField,
-        GeoField: search_api.GeoField
-    }
-
     def __init__(self, name=None, document_class=None):
         # Mandatory keyword argument... right. Mainly for compatibility with
         # the Search API's `Index` class
@@ -214,15 +195,19 @@ class Index(object):
     def put(self, documents):
         """Add `documents` to this index"""
 
-        def get_fields(d):
+        def get_fields(doc):
             """Convenience function for getting the search API fields list
             from the given document `d`.
             """
-            field = lambda f, n, v: self.FIELD_MAP[type(f)](name=n, value=v)
-            return [
-                field(f, n, f.to_search_value(getattr(d, n, None)))
-                for n, f in d._meta.fields.items()
-            ]
+            api_fields = []
+
+            for name, field in doc._meta.fields.items():
+                value = field.to_search_value(getattr(doc, name, None))
+                api_field = field.search_api_field(name=name, value=value)
+                api_fields.append(api_field)
+
+            return api_fields
+
 
         # If documents is actually just a single document, stick it in a list
         try:
@@ -233,7 +218,11 @@ class Index(object):
         # Construct the actual search API documents to add to the underlying
         # search API index
         search_docs = [
-            search_api.Document(doc_id=d.doc_id, fields=get_fields(d))
+            search_api.Document(
+                doc_id=d.doc_id,
+                rank=d._rank,
+                fields=get_fields(d)
+            )
             for d in documents
         ]
         return self._index.put(search_docs)
