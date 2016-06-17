@@ -1,5 +1,3 @@
-import re
-
 from google.appengine.api import search as search_api
 
 from . import ql
@@ -76,7 +74,7 @@ class SearchQuery(object):
 
     Provides a convenient interface for building up a query string using
     syntax similar to Django's:
-   
+
     >>> i = Index('films')
     >>> q = SearchQuery(i).keywords('bruce willis').filter(genre='action')
     >>> for doc in q[:20]:

@@ -1,8 +1,7 @@
 import re
 
-from google.appengine.api import search as search_api
-
 from .errors import FieldLookupError, BadValueError
+
 
 FORBIDDEN_VALUE_REGEX = re.compile(ur'([^_.@ \w-]+)', re.UNICODE)
 
