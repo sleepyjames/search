@@ -294,7 +294,12 @@ class BooleanField(Field):
 
 
 class DateField(Field):
-    """A field representing a date(time) object"""
+    """A field representing a date(time) object
+
+    This field is only indexed by date. The time portion is ignored.
+    See `DateTimeField` and `TZDateTimeField` for an implementation that will
+    support a more precise comparator.
+    """
 
     DATE_FORMAT = '%Y-%m-%d'
     DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
