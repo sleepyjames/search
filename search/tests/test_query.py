@@ -1,11 +1,15 @@
 import datetime
 import unittest
 
-from search.indexes import DocumentModel
-from search.fields import TZDateTimeField, TextField
-from search.query import SearchQuery
-from search.ql import Q
-from search import timezone
+from google.appengine.api import search as search_api
+
+from ..indexes import DocumentModel, Index
+from ..fields import TZDateTimeField, TextField
+from ..query import SearchQuery
+from ..ql import Q
+from .. import timezone
+
+from .base import AppengineTestCase
 
 
 class FakeDocument(DocumentModel):
@@ -56,3 +60,23 @@ class TestSearchQueryFilter(unittest.TestCase):
         q = q.filter(created__gt=xmas)
 
         self.assertEqual(unicode(q.query), u'(created > 1483185600)')
+
+
+class TestCursor(AppengineTestCase):
+    def test_cursor(self):
+        idx = Index('dummy', FakeDocument)
+        idx.put(FakeDocument(foo='thing'))
+        idx.put(FakeDocument(foo='thing2'))
+
+        idx.get_range()
+        q = idx.search().set_cursor()[:1]
+        list(q)
+
+        self.assertTrue(q.next_cursor)
+
+        q2 = idx.search().set_cursor(cursor=q.next_cursor)
+        self.assertEqual(2, len(q2)) # still returns full count
+        results = list(q2)
+        self.assertEqual(1, len(results)) # but only one document
+        self.assertEqual('thing2', results[0].foo)
+        self.assertFalse(q2.next_cursor)

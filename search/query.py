@@ -226,6 +226,15 @@ class SearchQuery(object):
         self._limit = self.MAX_LIMIT
         self._has_set_limits = False
 
+    @property
+    def next_cursor(self):
+        """Returns the cursor returned by the last search query run.
+
+        None is returned if a query has not been run or if the last query
+        did not have a cursor set.
+        """
+        return self._next_cursor
+
     def count(self):
         return len(self)
 
@@ -280,6 +289,22 @@ class SearchQuery(object):
         """
         cloned = self._clone()
         cloned._raw_query = query_string
+        return cloned
+
+    def set_cursor(self, cursor=None):
+        """Sets a cursor to be used with the query.
+        If `None` then a new cursor is created.
+        A cursor must be passed to a search query in order for the query to return the
+        next cursor
+        """
+        if not cursor:
+            cursor = search_api.Cursor()
+
+        if not isinstance(cursor, search_api.Cursor):
+            cursor = search_api.Cursor(web_safe_string=cursor)
+
+        cloned = self._clone()
+        cloned._cursor = cursor
         return cloned
 
     def score_with(self, match_scorer):
@@ -351,7 +376,11 @@ class SearchQuery(object):
         return field_expressions
 
     def _run_query(self):
-        offset = self._offset
+        if self._cursor:
+            offset = None
+        else:
+            offset = self._offset
+
         limit = self._limit
         sort_expressions = self._sorts
 
@@ -377,6 +406,7 @@ class SearchQuery(object):
             ids_only=self.ids_only,
             number_found_accuracy=100,
             returned_expressions=field_expressions,
+            cursor=self._cursor
         )
         search_query = search_api.Query(
             query_string=query_string,
@@ -385,3 +415,4 @@ class SearchQuery(object):
 
         self._results_response = self.index.search(search_query)
         self._number_found = self._results_response.number_found
+        self._next_cursor = self._results_response.cursor

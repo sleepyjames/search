@@ -429,7 +429,8 @@ class TZDateTimeField(DateTimeField):
     def to_python(self, value):
         value = super(TZDateTimeField, self).to_python(value)
 
-        return value.replace(tzinfo=timezone.utc)
+        if value:
+            return value.replace(tzinfo=timezone.utc)
 
 
 class GeoField(Field):
