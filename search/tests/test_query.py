@@ -69,12 +69,12 @@ class TestCursor(AppengineTestCase):
         idx.put(FakeDocument(foo='thing2'))
 
         idx.get_range()
-        q = idx.search().set_cursor()[:1]
+        q = idx.search().set_cursor().order_by('foo')[:1]
         list(q)
 
         self.assertTrue(q.next_cursor)
 
-        q2 = idx.search().set_cursor(cursor=q.next_cursor)
+        q2 = idx.search().set_cursor(cursor=q.next_cursor).order_by('foo')
         self.assertEqual(2, len(q2)) # still returns full count
         results = list(q2)
         self.assertEqual(1, len(results)) # but only one document
