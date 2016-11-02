@@ -10,6 +10,6 @@ class AppengineTestCase(unittest.TestCase):
         self.tb.activate()
         self.tb.init_search_stub()
 
-def tearDown(self):
+    def tearDown(self):
         self.tb.deactivate()
         super(AppengineTestCase, self).tearDown()
