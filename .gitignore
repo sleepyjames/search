@@ -2,3 +2,5 @@
 .*.swp
 .*.swo
 *.egg-info
+django_testapp/libs
+django_testapp/.storage

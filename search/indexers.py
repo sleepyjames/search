@@ -11,6 +11,30 @@ PUNCTUATION_REGEX = re.compile(ur'[^\w -\'"+]', re.U)
 WHITESPACE_REGEX = re.compile(ur'[\s]+', re.U)
 
 
+def build_corpus(*value_map):
+    """Takes a mapping of indexable values to functions and returns a string to
+    use as a document corpus
+    """
+    tokens = set()
+    words = []
+    for value, index_fn in value_map:
+        if not index_fn:
+            index_fn = literal
+        tokens = tokens.union(set(index_fn(value)))
+
+        # FIXME: We may not always wish to include the original value in the
+        # corpus, only the result of `index_fn(value)`, for now we just skip
+        # non-string values but it would be nice if this were more flexible.
+        if isinstance(value, basestring):
+            for word in value.split(' '):
+                words.append(word)
+
+    # discard any words from the tokens
+    tokens = tokens.difference(set(words))
+
+    return u'{} {}'.format(u' '.join(words), u' '.join(tokens))
+
+
 def clean_value(value):
     value = value or u''
     value = PUNCTUATION_REGEX.sub(u' ', value)
@@ -130,6 +154,12 @@ def firstletter(string, ignore=None):
         return [string.strip()[0]]
     except IndexError:
         return ['']
+
+
+def literal(value):
+    """Essentially a noop indexer
+    """
+    return (value,)
 
 
 def anglicise_char(char):

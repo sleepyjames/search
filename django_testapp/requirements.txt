@@ -1,0 +1,9 @@
+git+https://github.com/potatolondon/djangae.git@v0.9.5#egg=djangae
+Graphy==1.0.0
+GoogleAppEngineMapReduce==1.9.22.0
+GoogleAppEnginePipeline==1.9.21.1
+GoogleAppEngineCloudStorageClient==1.9.22.1
+Pillow
+webtest
+beautifulsoup4
+text-unidecode==1.0
