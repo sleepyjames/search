@@ -1,4 +1,3 @@
-import logging
 import operator
 
 from django.db.models import Q as DjangoQ
@@ -225,7 +224,7 @@ class SearchQueryAdapter(object):
         """Get the IDs in the order they came back from the search API...
         """
         doc_pks = [int(doc.pk) for doc in self]
-        results = (
+        results = list(
             self.model.objects
             .filter(id__in=doc_pks)
             .prefetch_related(*self._queryset._prefetch_related_lookups)
@@ -233,19 +232,11 @@ class SearchQueryAdapter(object):
 
         # Since we do pk__in to get the objects from the datastore, we lose
         # any ordering there was. To recreate it, we have to manually order
-        # the list back into whatever order the pks from the search API were in
-        objects_by_pk = {o.pk: o for o in results}
-        results = []
+        # the list back into whatever order the pks from the search API were in.
+        key_func = lambda x: doc_pks.index(x.pk)
+        results.sort(key=key_func)
 
-        for pk in doc_pks:
-            if pk not in objects_by_pk:
-                logging.warning(
-                    "{} with PK {} doesn't exist, but search returned it!"
-                    .format(self.model.__name__, pk),
-                )
-                continue
-
-            yield objects_by_pk[pk]
+        return results
 
     def all(self):
         clone = self._clone()
