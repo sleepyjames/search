@@ -31,7 +31,7 @@ def get_deferred_target():
 
 
 class ReindexMapReduceTask(MapReduceTask):
-    target = get_deferred_target()
+    target = property(get_deferred_target)
 
     @staticmethod
     def map(instance, *args, **kwargs):
