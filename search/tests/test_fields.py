@@ -4,9 +4,7 @@ import unittest
 
 from google.appengine.api.search import GeoPoint
 
-from search import errors
-from search import fields
-from search import timezone
+from search import errors, fields, indexers, timezone
 
 
 class Base(object):
@@ -53,6 +51,14 @@ class TestBaseField(Base, unittest.TestCase):
 
 class TestTextField(Base, unittest.TestCase):
     field_class = fields.TextField
+
+    def test_indexed_value(self):
+        f = self.new_field(self.field_class, indexer=indexers.contains)
+        value = f.to_search_value("Hello")
+        self.assertEqual(
+            sorted(indexers.contains("Hello")),
+            sorted(value.split(" "))
+        )
 
 
 class TestFloatField(Base, unittest.TestCase):

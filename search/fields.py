@@ -142,7 +142,7 @@ class TextField(Field):
             return value
 
         if self.indexer is not None:
-            return IndexedValue(self.indexer(value))
+            return IndexedValue(u" ".join(self.indexer(value)))
 
         return value
 
