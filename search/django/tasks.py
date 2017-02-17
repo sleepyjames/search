@@ -31,7 +31,12 @@ def get_deferred_target():
 
 
 class ReindexMapReduceTask(MapReduceTask):
-    target = property(get_deferred_target)
+    @property
+    def target(self):
+        # Wrapped in a property so it doesn't get called when this module is
+        # imported (because the modules API will raise KeyError if called too
+        # early).
+        return get_deferred_target()
 
     @staticmethod
     def map(instance, *args, **kwargs):
