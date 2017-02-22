@@ -23,9 +23,15 @@ logger = logging.getLogger(__name__)
 
 
 def get_deferred_target():
-    """Return the name of an App Engine module for running a deferred task."""
-    current_module = modules.get_current_version_name()
-    target = getattr(settings, 'WORKER_MODULE_NAME', current_module)
+    """Return the name of an App Engine module or version for running a
+    deferred task.
+    """
+    settings_key = 'WORKER_MODULE_NAME'
+
+    if hasattr(settings, settings_key):
+        target = getattr(settings, settings_key)
+    else:
+        target = modules.get_current_version_name()
 
     return target
 
