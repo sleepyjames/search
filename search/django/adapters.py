@@ -156,7 +156,6 @@ class SearchQueryAdapter(object):
 
         return q
 
-
     @classmethod
     def normalize_lookup(cls, node):
         """Converts Django Lookup into a single tuple or a list of tuples if
@@ -223,10 +222,10 @@ class SearchQueryAdapter(object):
     def as_model_objects(self):
         """Get the IDs in the order they came back from the search API...
         """
-        doc_pks = [int(doc.pk) for doc in self]
+        doc_pks = [doc.pk for doc in self]
         results = list(
             self.model.objects
-            .filter(id__in=doc_pks)
+            .filter(pk__in=doc_pks)
             .prefetch_related(*self._queryset._prefetch_related_lookups)
         )
 
