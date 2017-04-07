@@ -232,7 +232,7 @@ class SearchQueryAdapter(object):
         # Since we do pk__in to get the objects from the datastore, we lose
         # any ordering there was. To recreate it, we have to manually order
         # the list back into whatever order the pks from the search API were in.
-        key_func = lambda x: doc_pks.index(x.pk)
+        key_func = lambda x: doc_pks.index(unicode(x.pk))
         results.sort(key=key_func)
 
         return results
