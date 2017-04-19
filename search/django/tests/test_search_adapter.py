@@ -2,7 +2,7 @@ import unittest
 from django.db import models
 from djangae.test import TestCase
 
-from ..utils import SearchQueryAdapter
+from ..adapters import SearchQueryAdapter
 from .models import Foo, FooWithMeta
 
 
