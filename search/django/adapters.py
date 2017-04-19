@@ -219,15 +219,29 @@ class SearchQueryAdapter(object):
 
         return _args, _kwargs
 
-    def as_model_objects(self):
-        """Get the IDs in the order they came back from the search API...
+    def as_django_queryset(self):
+        """Get the Django queryset for objects in this set of documents, by
+        looking up on pk__in.
+
+        Returns
+            A tuple where the first item is the pk__in queryset, and the second
+            is a list of the document PKs being looked up (in case the calling
+            function wants to re-order them into the PK order).
         """
+        # TODO: This could be converted to an IDs only query for efficiency if
+        # `self` isn't already evaluated or isn't alread an `ids_only` query
         doc_pks = [doc.pk for doc in self]
-        results = list(
+        return (
             self.model.objects
             .filter(pk__in=doc_pks)
             .prefetch_related(*self._queryset._prefetch_related_lookups)
-        )
+        ), doc_pks
+
+    def as_model_objects(self):
+        """Get the IDs in the order they came back from the search API...
+        """
+        qs, doc_pks = self.as_django_queryset()
+        results = list(qs)
 
         # Since we do pk__in to get the objects from the datastore, we lose
         # any ordering there was. To recreate it, we have to manually order
