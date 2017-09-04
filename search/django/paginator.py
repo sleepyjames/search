@@ -58,11 +58,12 @@ class SearchPaginator(django_paginator.Paginator, IsSearchingMixin):
 
         return self._page
 
-    def _get_count(self):
+    @property
+    def count(self):
         # if we're searching then we can get the count from the
         # sliced objects list within the page
         if self.is_searching() and self._page is not None:
             return self._page.object_list.count()
-        return super(SearchPaginator, self)._get_count()
 
-    count = property(_get_count)
+        # Call the parent property
+        return super(SearchPaginator, self).count
