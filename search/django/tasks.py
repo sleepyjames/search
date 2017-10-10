@@ -8,6 +8,8 @@ from django.conf import settings
 
 from djangae.contrib.mappers.pipes import MapReduceTask
 
+from ..indexes import Index
+
 from .indexes import get_index_for_doc, index_instance
 from .registry import registry
 
@@ -98,15 +100,18 @@ def batch_delete_docs(index, doc_ids, batch_size=None):
     logger.info(u'Removed doc_ids %r', batch)
 
 
-def purge_index_for_doc(doc_class, batch_size=None):
+def purge_index_for_model(model, batch_size=None):
     batch_size = batch_size or RETRIEVE_BATCH_SIZE
-    index = get_index_for_doc(doc_class)
+    search_meta = registry.get(model)
+    index_name = search_meta[0]
+
+    index = Index(index_name)
     doc_ids = index.get_range(limit=batch_size, ids_only=True)
 
     if doc_ids:
         target = get_deferred_target()
         deferred.defer(
-            purge_index_for_doc, doc_class,
+            purge_index_for_model, doc_class,
             batch_size=batch_size,
             _target=target,
         )
@@ -120,11 +125,11 @@ def purge_indexes():
     """Purge all search indexes"""
     target = get_deferred_target()
 
-    for (model, (index_name, doc_cls, rank)) in registry.iteritems():
+    for model in registry.iterkeys():
 
         deferred.defer(
-            purge_index_for_doc,
-            doc_class=doc_cls,
+            purge_index_for_model,
+            model=model,
            _target=target,
         )
 
@@ -158,8 +163,10 @@ def remove_orphaned_docs_for_app_model(app_label, model_name, start_id=None, bat
     """
 
     model = apps.get_model(app_label, model_name)
-    doc = registry.get(model)[1]
-    index = get_index_for_doc(doc)
+    search_meta = registry.get(model)
+    index_name = search_meta[0]
+
+    index = Index(index_name)
     doc_ids = index.get_range(
         ids_only=True,
         start_id=start_id,
