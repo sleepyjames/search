@@ -50,7 +50,7 @@ Now the document has been indexed and is ready to search:
 >>> for d in results:
 ...     print d.title, d.description, d.rating, d.released
 ...
-'Die Hard', 'The most awesome film ever', 9.7, datetime.date(1989, 02, 03)
+'Die Hard', 'The most awesome film ever', 9.7, datetime.date(1989, 2, 3)
 ```
 
 From a basic standpoint, that's all there is to it. There is various filtering and ordering that can be applied to search queries, refer to the reference for the Index class for more in-depth example queries.
