@@ -111,7 +111,7 @@ def purge_index_for_model(model, batch_size=None):
     if doc_ids:
         target = get_deferred_target()
         deferred.defer(
-            purge_index_for_model, doc_class,
+            purge_index_for_model, model,
             batch_size=batch_size,
             _target=target,
         )
