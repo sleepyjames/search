@@ -1,0 +1,70 @@
+auth_customuser:
+  email: [iexact]
+auth_user:
+  email: [iexact]
+  username: [iexact]
+basic_article:
+  headline: [startswith]
+  pub_date: [year, month, day, week_day]
+djangae_datetimemodel:
+  date_field: [contains]
+  datetime_field: [contains]
+djangae_integermodel:
+  integer_field: [iexact]
+djangae_related:
+  headline: [startswith]
+djangae_specialindexesmodel:
+  name: [contains, endswith, iexact, startswith, icontains, iendswith, istartswith,
+    regex__285b412d5a5d295c772b, regex__285b412d5a5d295c772b5c735b2b5d5c73285b412d5a5d295c772b,
+    regex__5c2d546573745c2d, iregex__285b412d5a5d295c772b, iregex__285b412d5a5d295c772b5c735b2b5d5c73285b412d5a5d295c772b,
+    iregex__5c2d546573745c2d]
+  sample_list: [regex__285b412d5a5d295c772b, regex__285b412d5a5d295c772b5c735b2b5d5c73285b412d5a5d295c772b,
+    regex__5c2d546573745c2d, iregex__285b412d5a5d295c772b, iregex__285b412d5a5d295c772b5c735b2b5d5c73285b412d5a5d295c772b,
+    iregex__5c2d546573745c2d]
+djangae_testfruit:
+  color: [icontains, contains, iexact, iendswith, endswith, istartswith, startswith]
+djangae_testuser:
+  last_login: [year]
+  username: [iexact, contains, startswith]
+djangae_user:
+  username: [iexact]
+django_foo:
+  name: [contains, startswith]
+lookup_alarm:
+  time: [hour, minute, second]
+lookup_article:
+  headline: [contains, endswith, startswith, regex__666f2a, regex__62282e292e2a625c31,
+    iregex__666f2a, regex__666f2b, regex__666f6f6f3f, regex__5e62, iregex__5e61, regex__7a24,
+    iregex__7a24, regex__62615b727a5d, regex__62612e5b52785a5d, iregex__62615b52785a5d,
+    regex__6f6f28667c6229, iregex__6f6f28667c6229, regex__5e666f6f28667c6229, regex__622e2a617a,
+    iregex__622e2a6172]
+  id: [iexact]
+  pub_date: [startswith, month]
+lookup_player:
+  name: [regex__e299a0]
+lookup_season:
+  gt: [regex__5e34343424, regex__5e24]
+many_to_one_article:
+  headline: [startswith]
+many_to_one_null_article:
+  headline: [startswith]
+many_to_one_reporter:
+  first_name: [startswith]
+model_forms_post:
+  posted: [day, year, month]
+model_inheritance_place:
+  name: [contains]
+or_lookups_article:
+  headline: [contains, iexact, startswith, icontains]
+proxy_models_baseuser:
+  name: [icontains]
+proxy_models_bug:
+  version: [icontains]
+tests_related:
+  headline: [startswith]
+tests_specialindexesmodel:
+  name: [contains, endswith, iexact, startswith, icontains]
+tests_testuser:
+  username: [iexact, startswith]
+timezones_event:
+  dt: [year, month]

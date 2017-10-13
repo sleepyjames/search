@@ -1,0 +1,40 @@
+application: djangae-testapp
+version: 1
+runtime: python27
+api_version: 1
+threadsafe: yes
+
+builtins:
+- remote_api: on
+
+inbound_services:
+- warmup
+
+libraries:
+- name: webob
+  version: 1.2.3
+
+- name: webapp2
+  version: 2.5.2
+
+handlers:
+- url: /media
+  static_dir: static/media/
+
+- url: /static/admin
+  static_dir: static/admin
+  expiration: '0'
+
+- url: /_ah/(mapreduce|queue|warmup|start|stop).*
+  script: testapp.wsgi.application
+  login: admin
+  secure: always
+
+- url: /.*
+  script: testapp.wsgi.application
+
+skip_files:
+- ^(.*/)?.*\.py[co~]
+- (.*~)
+- (\..*)
+- (index\.yaml)

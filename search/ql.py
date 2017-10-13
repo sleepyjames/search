@@ -1,10 +1,14 @@
-import re, logging
+import re
+
+from .errors import FieldLookupError, BadValueError
+
 
 FORBIDDEN_VALUE_REGEX = re.compile(ur'([^_.@ \w-]+)', re.UNICODE)
 
 
-class FieldLookupError(Exception):
-    pass
+class GeoQueryArguments(object):
+    def __init__(self, lat, lon, radius):
+        self.lat, self.lon, self.radius = lat, lon, radius
 
 
 class FilterExpr(object):
@@ -18,26 +22,50 @@ class FilterExpr(object):
     # comparison operator string is mapped to its equivalent query syntax
     # template
     OPS = {
-        'contains': u'%s:"%s"',
-        'exact': u'%s = %s',
+        'contains': u'%s:(%s)',
+        'exact': u'%s:"%s"',
         'lt': u'%s < %s',
         'lte': u'%s <= %s',
         'gt': u'%s > %s',
         'gte': u'%s >= %s',
+        'geo': u'distance(%s, geopoint(%f, %f)) < %d',
+        'geo_lt': u'distance(%s, geopoint(%f, %f)) < %d',
+        'geo_lte': u'distance(%s, geopoint(%f, %f)) <= %d',
+        'geo_gt': u'distance(%s, geopoint(%f, %f)) > %d',
+        'geo_gte': u'distance(%s, geopoint(%f, %f)) >= %d'
     }
 
     def __init__(self, k, v, valid_ops=None):
-        self.prop_name, self.value = k, v
+        self.prop_expr, self.value = k, v
+        self.prop_name, self.op = self._split_filter(self.prop_expr)
         self.valid_ops = valid_ops or self.OPS
 
     def __str__(self):
         """`str()`ing a `FilterExpr` returns the string for this filter
         formatted in the search API syntax.
         """
-        prop_name, op = self._split_filter(self.prop_name)
+        prop_expr, op = self._split_filter(self.prop_expr)
         template = self.OPS[op]
-        return template % (prop_name, self.value)
-    
+        return template % (prop_expr, self.value)
+
+    def get_value(self):
+        return self.__unicode__()
+
+    def __unicode__(self):
+        template = self.OPS[self.op]
+
+        if self.op.startswith('geo'):
+            if not isinstance(self.value, GeoQueryArguments):
+                raise TypeError(self.value)
+            return template % (
+                self.prop_name,
+                self.value.lat,
+                self.value.lon,
+                self.value.radius
+            )
+
+        return template % (self.prop_name, self.value)
+
     def __debug(self):
         """Enable debugging features"""
         # This is handy for testing: see Q.__debug for why
@@ -46,25 +74,27 @@ class FilterExpr(object):
     def __undebug(self):
         if 'is' in self.OPS:
             del self.OPS['is']
-    
-    def _split_filter(self, prop_name):
-        """Splits `prop_name` by `self.SEPARATOR` and returns the parts,
+
+    def _split_filter(self, prop_expr):
+        """Splits `prop_expr` by `self.SEPARATOR` and returns the parts,
         with the comparison operator defaulting to a sensible value if it's not
         in `self.OPS` or if it's missing.
 
-        >>> prop_name = 'rating__lte'
-        >>> self._split_filter(prop_name)
+        >>> prop_expr = 'rating__lte'
+        >>> self._split_filter(prop_expr)
         ['rating', 'lte']
-        >>> prop_name = 'rating'
-        >>> self._split_filter(prop_name)
+        >>> prop_expr = 'rating'
+        >>> self._split_filter(prop_expr)
         ['rating', self.DEFAULT_OP]
         """
         op_name = 'exact'
-        if self.SEPARATOR in prop_name:
-            prop_name, op_name = prop_name.split(self.SEPARATOR)
+        if self.SEPARATOR in prop_expr:
+            prop_name, op_name = prop_expr.split(self.SEPARATOR)
             if op_name not in self.OPS:
                 # XXX: raise an error here?
                 op_name = self.DEFAULT_OP
+        else:
+            prop_name = prop_expr
         return [prop_name, op_name]
 
 
@@ -75,7 +105,24 @@ class Q(object):
     DEFAULT = AND
 
     def __init__(self, **kwargs):
-        self.children = kwargs.items()
+        self.kwargs = kwargs
+        children = kwargs.items()
+
+        self.children = []
+        for k, v in children:
+            try:
+                v_is_list = bool(iter(v)) and not issubclass(type(v), basestring)
+            except TypeError:
+                v_is_list = False
+
+            if v_is_list:
+                q = Q(**{k:v[0]})
+                for value in v[1:]:
+                    q |= Q(**{k:value})
+                self.children.append(q)
+            else:
+                self.children.append((k, v))
+
         self.conn = self.DEFAULT
         self.inverted = False
 
@@ -86,18 +133,22 @@ class Q(object):
         return self._combine(other, self.OR)
 
     def __invert__(self):
-        obj = type(self)()
-        obj.add(self)
-        obj.inverted = True
+        obj = type(self)(**self.kwargs)
+        obj.inverted = not self.inverted
         return obj
 
     def __str__(self):
         """Recursively stringify this expression and its children."""
         tmpl = u'(%s)'
         if self.inverted:
-            # TODO: this is messy, must be some nicer way I can't think of
-            tmpl = u' '.join([u'(%s' % self.NOT, u'%s)'])
-        return tmpl % (u' %s ' % self.conn).join([str(c) for c in self.children])
+            tmpl = "({0} {{0}})".format(self.NOT)
+        else:
+            tmpl = u'({0})'
+
+        conn_fmt = u' {0} '.format(self.conn)
+        joined_nodes = conn_fmt.join([str(c) for c in self.children])
+
+        return tmpl.format(joined_nodes)
 
     def __debug(self):
         """Enable debugging features. Handy for testing with stuff like:
@@ -128,9 +179,18 @@ class Q(object):
         obj.add(other)
         obj.conn = conn
         return obj
-    
+
     def add(self, child):
         self.children.append(child)
+
+    def get_filters(self):
+        filters = []
+        for q in self.children:
+            if type(q) == Q:
+                filters.extend(q.get_filters())
+            else:
+                filters.append(q)
+        return filters
 
 
 class Query(object):
@@ -164,14 +224,29 @@ class Query(object):
         """
         return FORBIDDEN_VALUE_REGEX.sub('', value)
 
-    def add_q(self, q):
+    def _clone(self):
+        new_q = type(self)(
+            self.document_class
+        )
+
+        new_q._gathered_q = self._gathered_q
+        new_q._keywords = self._keywords
+
+        return new_q
+
+    def add_q(self, q, conn=None):
         """Add a `Q` object to the internal reduction of gathered Qs,
         effectively adding a filter clause to the querystring.
         """
         if self._gathered_q is None:
             self._gathered_q = q
             return self
-        conn = self._gathered_q.DEFAULT.lower()
+
+        if not conn:
+            conn = self._gathered_q.DEFAULT
+
+        conn = conn.lower()
+
         self._gathered_q = getattr(self._gathered_q, '__%s__' % conn)(q)
         return self
 
@@ -180,6 +255,14 @@ class Query(object):
         self._keywords.append(keywords)
         return self
 
+    def get_filters(self):
+        if self._gathered_q:
+            return self._gathered_q.get_filters()
+        return []
+
+    def get_keywords(self):
+        return self._keywords
+
     def unparse_filter(self, child):
         """Unparse a `Q` object or tuple of the form `(field_lookup, value)`
         into the filters it represents. E.g.:
@@ -187,15 +270,15 @@ class Query(object):
         >>> q = Q(title__contains="die hard") & Q(rating__gte=7)
         >>> query = Query(FilmDocument)
         >>> query.unparse(q)
-        "((title:'die hard') AND (rating >= 7))
+        "((title:'die hard') AND (rating >= 7))"
         """
         # If we have a `Q` object, recursively unparse its children
         if isinstance(child, Q):
-            tmpl = '(%s)'
+            tmpl = u'(%s)'
             if child.inverted:
-                tmpl = '%s (%s)' % (child.NOT, '%s')
+                tmpl = u'%s (%s)' % (child.NOT, '%s')
 
-            conn = ' %s ' % child.conn
+            conn = u' %s ' % child.conn
             return tmpl % (
                 conn.join([self.unparse_filter(c) for c in child.children])
             )
@@ -203,27 +286,34 @@ class Query(object):
         if child is None:
             return None
         # `child` is a tuple of the form `(field__lookup, value)`
+
+        # TODO: Move this checking to SearchQuery.filter
+
         filter_lookup, value = child
         expr = FilterExpr(*child)
         # Get the field name to lookup without any comparison operators that
         # might be present in the field name string
-        fname = expr._split_filter(filter_lookup)[0]
         doc_fields = self.document_class._meta.fields
 
         # Can't filter on fields not in the document's fields
-        if fname not in doc_fields:
-            raise FieldLookupError('Prop name %s not in the field list for %s'
-                % (fname, self.document_class.__name__))
+        if expr.prop_name not in doc_fields:
+            raise FieldLookupError(u'Prop name %s not in the field list for %s'
+                % (expr.prop_name, self.document_class.__name__))
 
-        field = doc_fields[fname]
+        field = doc_fields[expr.prop_name]
         try:
-            value = field.prep_value_for_filter(value)
+            value = field.prep_value_for_filter(value, filter_expr=expr)
         except (TypeError, ValueError):
-            raise BadValueError('Value %s invalid for filtering on %s.%s (a %s)'
-                % (value, self.document_class.__name__, fname, type(field)))
+            raise BadValueError(
+                u'Value %s invalid for filtering on %s.%s (a %s)' % (
+                    value,
+                    self.document_class.__name__,
+                    expr.prop_name,
+                    type(field))
+                )
         # Create a new filter expression with the old filter lookup but with
         # the newly converted value
-        return str(FilterExpr(filter_lookup, value))
+        return unicode(FilterExpr(filter_lookup, value).get_value())
 
     def build_filters(self):
         """Get the search API querystring representation for all gathered
@@ -245,8 +335,8 @@ class Query(object):
 
         if filters and keywords:
             return u'%s %s %s' % (keywords, self.AND, filters)
-        elif filters:
+        if filters:
             return filters
-        elif keywords:
+        if keywords:
             return keywords
-        return ''
+        return u''

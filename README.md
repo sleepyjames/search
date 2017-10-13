@@ -1,97 +1,15 @@
-# thor-perusal
-\- a stupid name for an Appengine search API wrapper.
+# Thor
 
-thor-perusal is a wrapper for Google Appengine's search API that uses Django-like syntax for searching and filtering documents in search indexes, and this, is it's incredibly condescending readme.
+Thor is a wrapper for Google App Engine's search API that uses Django-like syntax for defining documents, and searching and filtering search indexes.
 
-## Getting Started: An Example
-... and a comparison.
+## Example
 
-### Setting up thor-perusal
+### Searching films
 
-Setting up thor-perusal is simple. Clone the repo into a folder in your project and make sure it's on your PATH. (Yes, it's not a typical Python package, but it might become one soon)
-
-### The Film Model
-
-Let's say we have some data model based on information about a film. The db model (using Google's `ext.db` API) may look something like:
+Say your app has a database of films that needs to be searched. The first step is to define a document class describing the searchable film data:
 
 ```python
-from google.appengine.ext import db
-
-class Film(db.Model):
-    title = db.StringProperty()
-    description = db.TextProperty()
-    rating = db.FloatProperty()
-    released = db.DateField()
-```
-
-Simple. A film has a short-string title, a longer text description, a float value for a rating, and a release date. We can store film objects in the datastore and everything's all good. But what happens when we want to search them?
-
-The short answer to the above is, we can't search them. For that, we need Google's search API.
-
-### Searching Films: `google.appengine.api.search`
-
-The search API acts on indexes and documents. Documents are populated with searchable data and then added to indexes, which are then searchable.
-
-With Google's search API module, you might index the document like this:
-
-```python
->>> from google.appengine.api import search
->>> from myapp.models import Film
->>>
->>> # Get or create the films index
->>> i = search.Index(name='films')
->>> # Get the film we want to index
->>> f = Film.get_by_key_name('die-hard')
->>> print f.title, f.description, f.rating, f.released
-'Die Hard' 'Bloody awesome' 10.0 datetime.date(1989, 02, 03)
->>>
->>> # Construct the fields that will make up our document
->>> fields = [
-...     search.TextField(name='title', value=f.title),
-...     search.TextField(name='description', value=f.description),
-...     search.NumberField(name='rating', value=f.rating),
-...     search.DateField(name='released', value=f.released)
-... ]
->>> # Create the document object using the film's datastore key name as
->>> # the document ID
->>> doc = search.Document(doc_id=f.key().name(), fields=fields)
->>> # Add the document to the films index
->>> i.add(doc)
-```
-
-Now the document describing _Die Hard_ has been indexed, let's search the index for it:
-
-```python
->>> results = i.search(search.Query('die'))
->>> for d in results:
-...     print d
-...
-<search.ScoredDocument object ...>
-```
-
-Just as expected, there it is: our document describing _Die Hard_. Now let's try and print the film title:
-
-```python
->>> # A document has a list of fields matching the list of fields you passed in
->>> # when instantiating the document
->>> for field in d.fields:
-...     if field.name == 'title':
-...         print field.value
-...
-'Die Hard'
-```
-
-Look at how much work you've got to do to get the film's title. This is because a `ScoredDocument` object stores its content in a list of field objects and seemingly provides no way of directly accessing their content via the document instance.
-
-### Searching Films: thor-perusal
-
-Let's see how (hopefully) thor-perusal makes the indexing and searching process simpler.
-
-First, define the document class to describe the film data:
-
-```python
-from search import indexes
-from search import fields
+from thor import indexes, fields
 
 class FilmDocument(indexes.DocumentModel):
     title = fields.TextField()
@@ -100,29 +18,29 @@ class FilmDocument(indexes.DocumentModel):
     released = fields.DateField()
 ```
 
-Notice that this is basically a duplication of the definition for the `Film` datastore model. People constantly refer to the DRY (Don't Repeat Yourself) principle, yet they also constantly refer to the 'be explicit' principal. In this case, you can't do both, so thor-perusal prefers explicit definition of document classes. Just because the two definitions happen to be the same doesn't mean they have anything to do with each other.
-
-To index a film document, instantiate and populate it with data, and then add it to thor-perusal's provided `Index` class:
+To index a film document, instantiate and populate it with data, and then add it to thor's provided `Index` class. It's more likely the data would come from some other source (datastore, database, etc.) but for this example we hand-craft it:
 
 ```python
->>> from google.appengine.ext import db
->>> from search import indexes
->>> from myapp.models import Film
+>>> from datetime import date
+>>> from thor import indexes
 >>> from myapp.documents import FilmDocument
 >>>
->>> # Note that this Index class has a similar interface to,
->>> # but is not, Google's Index class
+>>> # This gets a search index by name or creates it if it doesn't exist
 >>> i = indexes.Index(name='films')
->>> f = Film.get_by_key_name('die-hard')
->>> # DocumentModel objects can be instantiated with keyword args matching
->>> # field names defined on the class. **db.to_dict(f) is just a shortcut
->>> # to instantiating a FilmDocument with the field values on the Film
->>> # object, since the two share the same field names
->>> doc = FilmDocument(doc_id=f.key().id(), **db.to_dict(f))
->>> i.add(doc)
+>>> # Create a film document representing the film Die Hard
+>>> doc = FilmDocument(
+...     doc_id='die-hard',
+...     title='Die Hard',
+...     description='The most awesome film ever',
+...     rating=9.7,
+...     released=date(1989, 2, 3)
+... )
+>>> # Add the document to the index. In reality this should be done on
+>>> # a taskqueue at a rate around 4 docs/sec.
+>>> i.put(doc)
 ```
 
-Now to get at the document, as before, search the index, but this time, the results returned from the search are instances of your FilmDocument class, meaning that the field data is accessible through the field names as attributes on the object, as you'd expect:
+Now the document has been indexed and is ready to search:
 
 ```python
 >>> # You need to pass the document class (FilmDocument here) to the
@@ -132,7 +50,7 @@ Now to get at the document, as before, search the index, but this time, the resu
 >>> for d in results:
 ...     print d.title, d.description, d.rating, d.released
 ...
-'Die Hard', 'Bloody awesome', 10.0, datetime.date(1989, 02, 03)
+'Die Hard', 'The most awesome film ever', 9.7, datetime.date(1989, 2, 3)
 ```
 
 From a basic standpoint, that's all there is to it. There is various filtering and ordering that can be applied to search queries, refer to the reference for the Index class for more in-depth example queries.
